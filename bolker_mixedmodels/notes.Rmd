@@ -1,0 +1,205 @@
+---
+title: "EFI mixed models example"
+author: "Ben Bolker"
+date: '`r format(Sys.time(), "%d %b %Y")`'
+bibliography: bolker_efi.bib
+---
+
+## To do
+
+- table of contents
+- code folding
+- univariate exploratory plots?
+
+# Overview (mixed models essentials and subject-matter intro)
+
+## Mixed models essentials
+
+### What are mixed models good for?
+
+>  a broad class of statistical models that **extend linear and generalized linear models** to handle data where **observations are measured within discrete groups** such as field sites; years or other temporal blocks; individuals that are observed multiple times; genotypes; species; etc. They can be thought of (equivalently) as (1) **accounting for the correlation** among observations from the same group; (2) **estimating the variability** among groups, or (3) **parsimoniously estimating the effects of groups**. They are most useful when the experimental or observational design includes a large number of groups with varying numbers of observations per group.
+
+### What is a random effect anyway?
+
+- A *grouping variable* `g` (must be discrete!) and a *varying term* `f`
+- denoted as `(f | g)` in most R MM packages
+- "the effect of `f` varies across groups defined by `g` (`f` = `1` → intercept)
+- effects of `f` for each group `g` estimated by *shrinkage* (empirical Bayes, joint Bayesian prior, ...)
+
+### When should you use a random effect?
+
+- **don't** want to test hypotheses about differences between groups
+- **do** want to quantify the variability across groups
+- **do** want to make predictions for unobserved groups
+- **do** want to combine information across groups
+- **do** have variation in information per group (samples, noise)
+- **do** have groups randomly sampled from a population
+- **do** have a categorical *nuisance variable*
+- **do** have *exchangeable* groups
+- **do** have "many" (> 5-6) groups; small $n$ per group; unbalanced groups
+
+cf. @Crawley2002, @gelman_analysis_2005
+
+### What tools will we use today?
+
+- Mostly `lme4`
+- Some `ggplot2`, maybe some tidyverse
+- Other (G)LMM-adjacent packages listed [here](https://docs.google.com/spreadsheets/d/19itelYaVW0U0gtNtRfqh76ZGt1awlamNcJwT71u_5Uk/edit#gid=0)
+
+## Science intro
+
+### What project are we working on?
+
+- Paper in progress with Max Moritz (UCSB) and Enric Batllori Presas (Univ Barcelona)
+- Use synthetic global-scale databases of species richness, primary productivity, wildfire to quantify relationships between (NPP, fire consumption) and richness
+
+### Can we see some pictures?
+
+![](pix/mbb_fig1.png)
+
+### What are you going to do with this?
+
+- estimate effects of NPP (g C m$^2$/year), fire consumption (% of NPP), interannual CV of NPP and fire consumption, and their interactions, on species richness
+- at the global level and possibly variation across different geographic scales
+
+### need for mixed models: geographic variation
+
+- realms (large-scale) (e.g. "Neotropics")
+- biomes (medium-scale, environmental) (e.g. "tropical grassland")
+- biome × realm interaction ("tropical grasslands in the Neotropics")
+- "ecoregion": sampling unit [@olson_terrestrial_2001]
+
+### nesting and crossing
+
+## Nested vs crossed designs
+
+**Nested**: sub-unit IDs only measured within a single larger unit.
+e.g.: Plot1 in Block1 independent of Plot1 in Block2
+
+![](pix/CV_nested.png)
+
+**Crossed**: sub-unit IDs can be measured in multiple larger units.
+e.g. year, site
+
+![](pix/CV_crossed.png)
+
+**Unique coding**: removes ambiguity
+
+![](pix/CV_unique.png)
+
+Robert Long, [Cross Validated](https://stats.stackexchange.com/questions/228800/crossed-vs-nested-random-effects-how-do-they-differ-and-how-are-they-specified)
+
+### more preliminaries
+
+- we'll work with *log-scaled* NPP/fire, raw CVs, all *centered* [@schielzeth_simple_2010]
+- effects all evaluated at *geometric mean* of other variables
+- coefficients are approximately *elasticities*
+
+### finally, before we start
+
+
+![](pix/gelman_hill_complexity.png)
+
+![](pix/uriarte_yackulic_complexity.png)
+	
+[@gelman_data_2006; @uriarte_preaching_2009]
+
+# Coding
+
+## preliminaries
+
+```{r pkgs, message=FALSE}
+library(tidyverse); theme_set(theme_bw())
+library(lme4)
+## diagnostics
+library(DHARMa)
+library(car) ## influencePlot
+## extraction/graphics
+library(broom.mixed)
+library(dotwhisker)
+source("utils.R")
+```
+
+## load data
+
+```{r data}
+dd <- readRDS("data/ecoreg.rds")
+```
+
+## simplest model
+
+Start with simplest case (single-level, intercept-only). All pairwise interactions of main variables, plus ecoregion area:
+
+```{r fit1}
+m1 <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
+             (1 | biome),
+           data = dd)
+## may get
+## Warning message:
+## Some predictor variables are on very different scales: consider rescaling 
+```
+
+## diagnostics
+
+```{r diag, fig.keep="none", results="hide"}
+plot(m1, type = c("p", "smooth"))
+## heteroscedasticity
+plot(m1, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+car::influencePlot(m1)
+plot(simulateResiduals(m1))
+```
+
+```{r coefplot}
+## basic coefficient plot
+dwplot(m1, effects="fixed") + geom_vline(xintercept = 0, lty = 2)
+## ordered coefficient plot
+dwplot_ordered(m1, effects = "fixed")
+```
+
+## three-level model
+
+- discuss nesting/crossing
+
+
+## maximal model
+
+- idea
+- why it usually doesn't work
+- (confounding with residual variance)
+
+## model simplification
+
+- avoid singularity
+- convergence warnings
+
+## AIC table/strategy
+
+- `for` loop over table
+
+## diagnostics
+
+basic
+DHARMa
+
+## spatial correlation
+
+- diagnosis
+- choices 
+
+
+## display/description
+
+coefficient plots
+predictions
+partial residuals
+R^2 values
+
+# extras
+
+- more on regularization
+- more on model simplification (compound symmetry, factor-analytic)
+- more complex structures (AR etc.)
+- more on autocorrelation (INLA, gamm4, brms; soap-film, MRF, ?)
+- more on available packages (Google sheet)
+
+# references
