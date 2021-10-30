@@ -158,7 +158,16 @@ dwplot_ordered(m1, effects = "fixed")
 
 ## three-level model
 
-- discuss nesting/crossing
+```{r three_level, cache=TRUE}
+max_model <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
+                    (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | biome) +
+                    (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | flor_realms) +
+                    (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | biome_FR),
+                  data = dd,
+                  ## for speed/skip convergence warnings
+                  control = lmerControl(calc.derivs = FALSE))
+isSingular(max_model)
+VarCorr(max_model)
 
 
 ## maximal model
