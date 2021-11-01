@@ -3,13 +3,17 @@ title: "EFI mixed models example"
 author: "Ben Bolker"
 date: '`r format(Sys.time(), "%d %b %Y")`'
 bibliography: bolker_efi.bib
+output: 
+  html_document:
+    slide_level: 3
+    toc: yes
+    code_folding: hide
 ---
 
-## To do
-
-- table of contents
-- code folding
-- univariate exploratory plots?
+```{r setup, include=FALSE}
+## don't print results
+knitr::opts_chunk$set(results="hide", fig.keep="none")
+```
 
 # Overview (mixed models essentials and subject-matter intro)
 
@@ -40,24 +44,25 @@ bibliography: bolker_efi.bib
 
 cf. @Crawley2002, @gelman_analysis_2005
 
-### What tools will we use today?
+### What tools?
 
-- Mostly `lme4`
+- Mostly `lme4`; `gamm4` to deal with spatial autocorrelation
 - Some `ggplot2`, maybe some tidyverse
+- diagnostics etc.; `broom.mixed`, `DHARMa`, `car`
 - Other (G)LMM-adjacent packages listed [here](https://docs.google.com/spreadsheets/d/19itelYaVW0U0gtNtRfqh76ZGt1awlamNcJwT71u_5Uk/edit#gid=0)
 
 ## Science intro
 
-### What project are we working on?
+### What is this project?
 
 - Paper in progress with Max Moritz (UCSB) and Enric Batllori Presas (Univ Barcelona)
 - Use synthetic global-scale databases of species richness, primary productivity, wildfire to quantify relationships between (NPP, fire consumption) and richness
 
-### Can we see some pictures?
+### Pictures?
 
 ![](pix/mbb_fig1.png)
 
-### What are you going to do with this?
+### Analytical goals?
 
 - estimate effects of NPP (g C m$^2$/year), fire consumption (% of NPP), interannual CV of NPP and fire consumption, and their interactions, on species richness
 - at the global level and possibly variation across different geographic scales
@@ -69,9 +74,7 @@ cf. @Crawley2002, @gelman_analysis_2005
 - biome × realm interaction ("tropical grasslands in the Neotropics")
 - "ecoregion": sampling unit [@olson_terrestrial_2001]
 
-### nesting and crossing
-
-## Nested vs crossed designs
+### nesting and crossing of random effects
 
 **Nested**: sub-unit IDs only measured within a single larger unit.
 e.g.: Plot1 in Block1 independent of Plot1 in Block2
@@ -89,6 +92,16 @@ e.g. year, site
 
 Robert Long, [Cross Validated](https://stats.stackexchange.com/questions/228800/crossed-vs-nested-random-effects-how-do-they-differ-and-how-are-they-specified)
 
+### random effects terms
+
+- "random effect of X" usually means intercept variation only, by default (but see @schielzeth_conclusions_2009)
+  - one parameter (variance/std dev of intercept across groups)
+- RE terms with `n` parameters (intercept + slope = 2)
+  - `n*(n+1)/2` parameters
+  - 10 for this example
+- RE terms with `n` **independent** effects (`||` shortcut); only `n` parameters
+  - 4 for this example
+  
 ### more preliminaries
 
 - we'll work with *log-scaled* NPP/fire, raw CVs, all *centered* [@schielzeth_simple_2010]
@@ -97,38 +110,51 @@ Robert Long, [Cross Validated](https://stats.stackexchange.com/questions/228800/
 
 ### finally, before we start
 
+```{r GHpix, fig.keep = "all", fig.show = "asis", results="show"}
+knitr::include_graphics("pix/gelman_hill_complexity.png")
+```
 
-![](pix/gelman_hill_complexity.png)
+@gelman_data_2006
 
-![](pix/uriarte_yackulic_complexity.png)
+---
+
+```{r UYpix, fig.keep = "all", fig.show = "asis", results="show"}
+knitr::include_graphics("pix/uriarte_yackulic_complexity.png")
+```
 	
-[@gelman_data_2006; @uriarte_preaching_2009]
+@uriarte_preaching_2009
 
 # Coding
 
-## preliminaries
+### load packages
+
+Try to load packages up front, note what they're used for ...
 
 ```{r pkgs, message=FALSE}
 library(tidyverse); theme_set(theme_bw())
 library(lme4)
+library(gamm4)
 ## diagnostics
 library(DHARMa)
 library(car) ## influencePlot
 ## extraction/graphics
 library(broom.mixed)
 library(dotwhisker)
+library(lattice)
+library(gridExtra)
 source("utils.R")
+source("gamm4_utils.R")
 ```
 
-## load data
+### load data
 
 ```{r data}
 dd <- readRDS("data/ecoreg.rds")
 ```
 
-## simplest model
+### simplest model
 
-Start with simplest case (single-level, intercept-only). All pairwise interactions of main variables, plus ecoregion area:
+Single-level model (biomes), intercept variation only. All pairwise interactions of main variables (`(...)^2`), plus (log of) ecoregion area:
 
 ```{r fit1}
 m1 <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
@@ -139,7 +165,9 @@ m1 <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc +
 ## Some predictor variables are on very different scales: consider rescaling 
 ```
 
-## diagnostics
+### diagnostics
+
+Best to look at diagnostics **as early as possible** (before `summary()` if possible) to reduce snooping.
 
 ```{r diag, fig.keep="none", results="hide"}
 plot(m1, type = c("p", "smooth"))
@@ -156,9 +184,25 @@ dwplot(m1, effects="fixed") + geom_vline(xintercept = 0, lty = 2)
 dwplot_ordered(m1, effects = "fixed")
 ```
 
-## three-level model
+### add RE terms
+
+- allow the main effects to vary across biomes (in a correlated way)
+- `update()` is your friend
+
+```{r fit2, cache=TRUE, message=FALSE}
+m2 <- update(m1, . ~ . - (1|biome) + (1 + Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | biome))
+```
+
+```{r plot_fit2}
+dwplot_ordered(list(intercept_only = m1, full = m2), effects = "fixed")
+```
+
+### three-level model
+
+Now we'll go to the (almost) maximal model
 
 ```{r three_level, cache=TRUE}
+## ~ 30 seconds
 max_model <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
                     (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | biome) +
                     (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | flor_realms) +
@@ -166,39 +210,148 @@ max_model <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_l
                   data = dd,
                   ## for speed/skip convergence warnings
                   control = lmerControl(calc.derivs = FALSE))
+```
+
+### checking the mo
+
+```{r eval_three_level}
 isSingular(max_model)
+lwr <- getME(max_model, "lower"); theta <- getME(max_model, "theta"); min(theta[lwr == 0])
 VarCorr(max_model)
+```
 
-
-## maximal model
+### maximal model
 
 - idea
 - why it usually doesn't work
-- (confounding with residual variance)
+   - complexity
+   - confounding with residual variance: [starling mixed model example](https://ms.mcmaster.ca/~bolker/classes/uqam/mixedlab1.html)
 
-## model simplification
+### model simplification
 
-- avoid singularity
-- convergence warnings
+- avoid singularity/non-convergence [@barr_random_2013; @schielzeth_conclusions_2009]
+- data-driven (AIC, p-value) [@bates_parsimonious_2015; @matuschek_balancing_2017]
 
-## AIC table/strategy
+### non-convergence vs singularity
+
+- convergence warnings: historical reasons
+- very unreliable (and slow!) for large data sets (>10,000 observations)
+- gold standard: run `allFit()`, diagnose/evaluate differences in effects of interest
+
+
+### AIC table/strategy
 
 - `for` loop over table
 
-## diagnostics
+```{r model_table, cache = TRUE}
+all_vars <- "1 + Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc"
+v1 <- expand.grid(c("1 | ", paste(all_vars, "|"), paste(all_vars, "||")),
+                  c("biome", "flor_realms", "biome_FR"))
+v2 <- sprintf("(%s)", apply(v1, 1, paste, collapse = " "))
+## use cross_df instead of expand.grid, want chars
+v3 <- cross_df(list(biome = v2[1:3], FR = v2[4:6], biome_FR = v2[7:9]))
+v3[1,]
+```
 
-basic
-DHARMa
+```{r fit_models, eval=FALSE}
+model_list <- list()
+p1 <- proc.time()
+for (i in 1:nrow(v3)) {
+  cat(i, unlist(v3[i,]), "\n")
+  form <- reformulate(
+      c(sprintf("(%s)^2", all_vars),
+        "log(area_km2)",
+        unlist(v3[i,])),
+      response = "mbirds_log")
+      model_list[[i]] <- lmer(form, data = dd)
+}
+saveRDS(model_list, file = "data/model_list.rds")
+proc.time() - p1
+```
 
-## spatial correlation
+### extract summary info from models, take a look
 
-- diagnosis
-- choices 
+```{r summarize}
+model_list <- readRDS("data/model_list.rds")
+aic_vec <- sapply(model_list, AIC)
+is_sing <- sapply(model_list, isSingular)
+conv_warn <- sapply(model_list, has_warning)
+tibble(model=1:27, aic_vec, is_sing, conv_warn) %>% arrange(aic_vec)
+```
 
+### find best-AIC, non-singular model
+
+```{r get_best}
+best_index <- which(aic_vec == min(aic_vec) & !is_sing & !conv_warn)
+best_model <- model_list[[best_index]]
+```
+
+## check it out
+
+```{r best_model}
+best_model
+```
+
+### diagnostics
+
+```{r diag_bestmodel, fig.keep="none", results="hide"}
+plot(best_model, type = c("p", "smooth"))
+## heteroscedasticity
+plot(best_model, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+car::influencePlot(best_model)
+plot(sr <- simulateResiduals(best_model))
+```
+
+### What's going on with DHARMa?
+
+Computes residuals at *population level* (usually a good default but not necessarily appropriate here?)
+
+```{r check_dharma}
+plotResiduals(sr, dd$NPP_log_sc)
+p2 <- plot(best_model, resid(.) ~ NPP_log_sc, type=c("p", "smooth"))
+pop_resids <- model.response(model.frame(best_model)) - predict(best_model, re.form=NA)
+p1 <- lattice::xyplot(pop_resids ~ dd$NPP_log_sc, cex=1.5, type = c("p", "smooth"))
+grid.arrange(p1, p2, nrow = 1)
+```
+
+### spatial correlation
+
+Easiest way to look at spatial correlations is graphically:
+
+```{r spatcorr}
+dd$res1 <- residuals(best_model)
+ggplot(dd, aes(x, y, colour = res1, size = abs(res1))) +
+  geom_point() +
+  scale_colour_gradient2() +
+  scale_size(range=c(2,7))
+```
+
+Could also develop spatial variograms, etc..
+
+## refit with `gamm4`
+
+```{r gamm4, cache=TRUE}
+gamm4_form  <- update(formula(best_model), . ~ . + s(y, x, bs="sos"))
+best_gamm4 <- gamm4(formula = nobars(gamm4_form),
+                    random = as.formula(reOnly(gamm4_form)),
+                    data = dd)
+class(best_gamm4) <- c("gamm4", "list")
+```
+
+### compare results
+
+```{r lme4_gamm4_comp}
+dwplot_ordered(list(best_gamm4, best_model), effects="fixed")
+```
 
 ## display/description
 
-coefficient plots
+### coefficient plots
+
+With `dwplot()` as shown before. (Tricky decisions about whether to use scaled or unscaled coefficients.)
+
+![](pix/
+
 predictions
 partial residuals
 R^2 values
@@ -211,4 +364,14 @@ R^2 values
 - more on autocorrelation (INLA, gamm4, brms; soap-film, MRF, ?)
 - more on available packages (Google sheet)
 
+### To do
+
+- univariate exploratory plots?
+- does max model not report singularity ...? (`isSingular`/singular tol mismatch?)
+- `allFit` example?
+- prettier ecoregions plot?
+
 # references
+
+## references
+

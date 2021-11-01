@@ -1,0 +1,4 @@
+#!/bin/bash
+Rscript -e "rmarkdown::render('notes.Rmd', output_format = 'ioslides_presentation', 
+    output_file = 'notes.slides.html',
+    output_options = list(slide_level = 3))"

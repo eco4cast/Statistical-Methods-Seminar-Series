@@ -63,3 +63,65 @@ pages = {103-113},
 	note = {Publisher: [Wiley, Ecological Society of America]},
 	pages = {592--596}
 }
+
+@article{barr_random_2013,
+	title = {Random effects structure for confirmatory hypothesis testing: Keep it maximal},
+	volume = {68},
+	issn = {0749-{596X}},
+	shorttitle = {Random effects structure for confirmatory hypothesis testing},
+	url = {http://www.sciencedirect.com/science/article/pii/S0749596X12001180},
+	doi = {10.1016/j.jml.2012.11.001},
+	abstract = {Linear mixed-effects models ({LMEMs)} have become increasingly prominent in psycholinguistics and related areas. However, many researchers do not seem to appreciate how random effects structures affect the generalizability of an analysis. Here, we argue that researchers using {LMEMs} for confirmatory hypothesis testing should minimally adhere to the standards that have been in place for many decades. Through theoretical arguments and Monte Carlo simulation, we show that {LMEMs} generalize best when they include the maximal random effects structure justified by the design. The generalization performance of {LMEMs} including data-driven random effects structures strongly depends upon modeling criteria and sample size, yielding reasonable results on moderately-sized samples when conservative criteria are used, but with little or no power advantage over maximal models. Finally, random-intercepts-only {LMEMs} used on within-subjects and/or within-items data from populations where subjects and/or items vary in their sensitivity to experimental manipulations always generalize worse than separate F1 and F2 tests, and in many cases, even worse than F1 alone. Maximal {LMEMs} should be the ‘gold standard’ for confirmatory hypothesis testing in psycholinguistics and beyond.},
+	number = {3},
+	urldate = {2013-09-26},
+	journal = {Journal of Memory and Language},
+	author = {Barr, Dale J. and Levy, Roger and Scheepers, Christoph and Tily, Harry J.},
+	month = apr,
+	year = {2013},
+	keywords = {Generalization, Linear mixed-effects models, Monte Carlo simulation, statistics},
+	pages = {255--278}
+}
+
+@article{schielzeth_conclusions_2009,
+	title = {Conclusions beyond support: overconfident estimates in mixed models},
+	volume = {20},
+	issn = {1045-2249, 1465-7279},
+	shorttitle = {Conclusions beyond support},
+	url = {http://beheco.oxfordjournals.org/content/20/2/416},
+	doi = {10.1093/beheco/arn145},
+	abstract = {Mixed-effect models are frequently used to control for the nonindependence of data points, for example, when repeated measures from the same individuals are available. The aim of these models is often to estimate fixed effects and to test their significance. This is usually done by including random intercepts, that is, intercepts that are allowed to vary between individuals. The widespread belief is that this controls for all types of pseudoreplication within individuals. Here we show that this is not the case, if the aim is to estimate effects that vary within individuals and individuals differ in their response to these effects. In these cases, random intercept models give overconfident estimates leading to conclusions that are not supported by the data. By allowing individuals to differ in the slopes of their responses, it is possible to account for the nonindependence of data points that pseudoreplicate slope information. Such random slope models give appropriate standard errors and are easily implemented in standard statistical software. Because random slope models are not always used where they are essential, we suspect that many published findings have too narrow confidence intervals and a substantially inflated type I error rate. Besides reducing type I errors, random slope models have the potential to reduce residual variance by accounting for between-individual variation in slopes, which makes it easier to detect treatment effects that are applied between individuals, hence reducing type {II} errors as well.},
+	language = {en},
+	number = {2},
+	urldate = {2012-07-27},
+	journal = {Behavioral Ecology},
+	author = {Schielzeth, Holger and Forstmeier, Wolfgang},
+	month = mar,
+	year = {2009},
+	keywords = {experimental design, maternal effects, mixed-effect models, random regression, repeated measures, type I error},
+	pages = {416--420}
+}
+
+@article{matuschek_balancing_2017,
+journal={Journal of Memory and Language},
+year=2017,
+volume=94,
+pages={305-315},
+doi={10.1016/j.jml.2017.01.001},
+	title = {Balancing Type {I} Error and Power in Linear Mixed Models},
+	abstract = {Linear mixed-effects models have increasingly replaced mixed-model analyses of variance for statistical inference in factorial psycholinguistic experiments. The advantages of LMMs over ANOVAs, however, come at a cost: Setting up an LMM is not as straightforward as running an ANOVA. One simple option, when numerically possible, is to fit the full variance-covariance structure of random effects (the maximal model; Barr et al., 2013), presumably to keep Type I error down to the nominal \${\textbackslash}alpha\$ in the presence of random effects. Although it is true that fitting a model with only random intercepts may lead to higher Type I error, fitting a maximal model also has a cost: it can lead to a significant loss of power. We demonstrate this with simulations and suggest that for typical psychological and psycholinguistic data, models with a random effect structure that is supported by the data have optimal Type I error and power properties.},
+	author = {Matuschek, Hannes and Kliegl, Reinhold and Vasishth, Shravan and Baayen, Harald and Bates, Douglas},
+}
+
+@article{bates_parsimonious_2015,
+	title = {Parsimonious {Mixed} {Models}},
+	url = {http://arxiv.org/abs/1506.04967},
+	abstract = {The analysis of experimental data with mixed-effects models requires decisions about the specification of the appropriate random-effects structure. Recently, Barr et al. (2013) recommended fitting 'maximal' models with all possible random effect components included. Estimation of maximal models, however, may not converge. We show that failure to converge typically is not due to a suboptimal estimation algorithm, but is a consequence of attempting to fit a model that is too complex to be properly supported by the data, irrespective of whether estimation is based on maximum likelihood or on Bayesian hierarchical modeling with uninformative or weakly informative priors. Importantly, even under convergence, overparameterization may lead to uninterpretable models. We provide diagnostic tools for detecting overparameterization and guiding model simplification. Finally, we clarify that the simulations on which Barr et al. base their recommendations are atypical for real data. A detailed example is provided of how subject-related attentional fluctuation across trials may further qualify statistical inferences about fixed effects, and of how such nonlinear effects can be accommodated within the mixed-effects modeling framework.},
+	urldate = {2015-12-31},
+	journal = {arXiv:1506.04967 [stat]},
+	author = {Bates, Douglas and Kliegl, Reinhold and Vasishth, Shravan and Baayen, Harald},
+	month = jun,
+	year = {2015},
+	note = {arXiv: 1506.04967},
+	keywords = {Statistics - Methodology},
+	file = {arXiv\:1506.04967 PDF:/Users/bolker/Library/Application Support/Firefox/Profiles/rxerw03y.default/zotero/storage/R5GBSNI8/Bates et al. - 2015 - Parsimonious Mixed Models.pdf:application/pdf;arXiv.org Snapshot:/Users/bolker/Library/Application Support/Firefox/Profiles/rxerw03y.default/zotero/storage/3PPCR27G/1506.html:text/html}
+}
