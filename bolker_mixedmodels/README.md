@@ -4,7 +4,7 @@
 
 <!-- https://raw.githack.com/:user/:repo/:tag/:file -->
 
-- Full (messy) pipeline for this project is at https://github.com/bolker/mmd_utils
+- Full (messy) pipeline for this project is at https://github.com/bbolker/mmd_utils
 - notes [here](notes.Rmd)
 - [rendered HTML](https://raw.githack.com/eco4cast/Statistical-Methods-Seminar-Series/main/bolker_mixedmodels/outputs/notes.html)
 - [rendered HTML with outputs](https://raw.githack.com/eco4cast/Statistical-Methods-Seminar-Series/main/bolker_mixedmodels/outputs/full_notes.html)
