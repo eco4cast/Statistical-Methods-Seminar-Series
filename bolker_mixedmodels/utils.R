@@ -27,7 +27,7 @@ has_warning <- function(x) {
 
 CRAN_pkgs <- c("lme4", "gamm4", "DHARMa", "broom.mixed",
                "gridExtra", "tidyverse", "remotes", "tidyverse", "car",
-               "dotwhisker")
+               "dotwhisker", "emmeans")
 GH_pkgs <- c("bbolker/r2glmm", "hohenstein/remef")
 install_all_pkgs <- function() {
   i1 <- installed.packages()

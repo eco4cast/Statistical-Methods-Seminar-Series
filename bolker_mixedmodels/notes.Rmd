@@ -141,6 +141,7 @@ library(DHARMa)
 library(car) ## influencePlot
 ## extraction/graphics
 library(broom.mixed)
+library(emmeans)
 library(dotwhisker)
 library(gridExtra)
 ## from GitHub: see utils.R
@@ -387,6 +388,9 @@ ggplot(rsqvals, aes(x=Rsq, xmin = lower.CL, xmax = upper.CL, y = Effect)) +
 ![](pix/mbb_fig3a.png)
 
 ### prediction plots
+
+- `emmeans`, `effects` and `ggeffects` package are useful for extracting predictions
+- need to be mindful of whether random effects components are included in the predictions (`re.form`)
 
 ```{r pred_plots}
 NPPvec <- with(dd, seq(min(NPP_log_sc), max(NPP_log_sc), length.out = 51))
