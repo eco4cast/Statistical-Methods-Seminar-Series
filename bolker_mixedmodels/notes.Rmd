@@ -29,10 +29,12 @@ if (!show_res) { knitr::opts_chunk$set(results="hide", fig.keep="none") }
 
 - A *grouping variable* `g` (must be discrete!) and a *varying term* `f`
 - denoted as `(f | g)` in most R MM packages
-- "the effect of `f` varies across groups defined by `g` (`f` = `1` → intercept)
-- effects of `f` for each group `g` estimated by *shrinkage* (empirical Bayes, joint Bayesian prior, ...)
+- "the effect of `f` (e.g. slope) varies across groups defined by `g` (e.g. species; `f` = `1` → intercept)
+- effects of `f` for each group `g` via *shrinkage estimation*/*partial pooling* (empirical Bayes, joint Bayesian prior, ...)
 
 ### When should you use a random effect?
+
+Some rules of thumb
 
 - **don't** want to test hypotheses about differences between groups
 - **do** want to quantify the variability across groups
@@ -74,17 +76,17 @@ cf. @Crawley2002, @gelman_analysis_2005
 - realms (large-scale) (e.g. "Neotropics")
 - biomes (medium-scale, environmental) (e.g. "tropical grassland")
 - biome × realm interaction ("tropical grasslands in the Neotropics")
-- "ecoregion": sampling unit [@olson_terrestrial_2001]
+- "ecoregion": sampling unit [@olson_terrestrial_2001] ^["relatively large units of land containing a distinct assemblage of natural communities and species, with boundaries that approximate the original extent of natural communities prior to major land-use change"]
 
 ### nesting and crossing of random effects
 
 **Nested**: sub-unit IDs only measured within a single larger unit.
-e.g.: Plot1 in Block1 independent of Plot1 in Block2
+e.g.: Class1 in School1 independent of Class1 in School2: `(1|School/Class)`
 
 ![](pix/CV_nested.png)
 
 **Crossed**: sub-unit IDs can be measured in multiple larger units.
-e.g. year, site
+e.g. class = "history", "geography", "mathematics": `(1|School) + (1|Class)`
 
 ![](pix/CV_crossed.png)
 
@@ -100,19 +102,19 @@ Robert Long, [Cross Validated](https://stats.stackexchange.com/questions/228800/
   - one parameter (variance/std dev of intercept across groups)
 - RE terms with `n` parameters (intercept + slope = 2)
   - `n*(n+1)/2` parameters
-  - 10 for this example
+  - `n`=5 → 15 for this example
 - RE terms with `n` **independent** effects (`||` shortcut); only `n` parameters
-  - 4 for this example
+  - 5 for this example
   
 ### more preliminaries
 
 - we'll work with *log-scaled* NPP/fire, raw CVs, all *centered* [@schielzeth_simple_2010]
-- effects all evaluated at *geometric mean* of other variables
+- main effects all evaluated at *geometric mean* of other variables
 - coefficients are approximately *elasticities*
 
-### finally, before we start ...
+### before we start coding ...
 
-```{r GHpix, fig.keep = "all", fig.show = "asis", results="show"}
+```{r GHpix, fig.keep = "all", fig.show = "asis", results="show", out.width="50%"}
 knitr::include_graphics("pix/gelman_hill_complexity.png")
 ```
 
@@ -120,7 +122,7 @@ knitr::include_graphics("pix/gelman_hill_complexity.png")
 
 ---
 
-```{r UYpix, fig.keep = "all", fig.show = "asis", results="show"}
+```{r UYpix, fig.keep = "all", fig.show = "asis", results="show", out.width="50%"}
 knitr::include_graphics("pix/uriarte_yackulic_complexity.png")
 ```
 	
@@ -162,9 +164,10 @@ dd <- readRDS("data/ecoreg.rds")
 Single-level model (biomes), intercept variation only. All pairwise interactions of main variables (`(...)^2`), plus (log of) ecoregion area:
 
 ```{r fit1}
-m1 <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
+m1 <- lmer(mbirds_log ~ scale(log(area_km2)) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
              (1 | biome),
            data = dd)
+## "Feat" = "fire eaten"
 ## may get
 ## Warning message:
 ## Some predictor variables are on very different scales: consider rescaling 
@@ -174,13 +177,15 @@ m1 <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc +
 
 Best practice: check diagnostics **as early as possible** (before `summary()`, coeff plots) to reduce snooping.
 
-```{r diag, fig.keep="none", results="hide"}
+```{r diag, results="hide"}
 plot(m1, type = c("p", "smooth"))
 ## heteroscedasticity
-plot(m1, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth"))
+plot(m1, sqrt(abs(resid(.))) ~ fitted(.), type = c("p", "smooth")) ## slight heteroscedasticity?
 car::influencePlot(m1)
-plot(DHARMa::simulateResiduals(m1))
+plot(DHARMa::simulateResiduals(m1))  ## we'll get back to this
 ```
+
+### coefficient plots
 
 ```{r coefplot}
 ## basic coefficient plot
@@ -200,7 +205,7 @@ m2 <- update(m1, . ~ . - (1|biome) + (1 + Feat_log_sc + Feat_cv_sc + NPP_log_sc 
 
 ```{r plot_fit2}
 ## compare plots
-dwplot_ordered(list(intercept_only = m1, full = m2), effects = "fixed")
+dwplot_ordered(list(intercept_only = m1, random_slopes = m2), effects = "fixed")
 ```
 
 ### three-level model
@@ -209,7 +214,7 @@ Now go to the (almost) maximal model; variation of main effects at all three geo
 
 ```{r three_level, cache=TRUE}
 ## ~ 30 seconds
-max_model <- lmer(mbirds_log ~ log(area_km2) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
+max_model <- lmer(mbirds_log ~ scale(log(area_km2)) + (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc)^2 +
                     (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | biome) +
                     (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | flor_realms) +
                     (Feat_log_sc + Feat_cv_sc + NPP_log_sc + NPP_cv_sc | biome_FR),
@@ -244,11 +249,10 @@ VarCorr(max_model)
 - very unreliable (and slow!) for large data sets (>10,000 observations)
 - gold standard: run `allFit()`, diagnose/evaluate differences in effects of interest
 
-
 ### AIC table/strategy
 
 - `for` loop over table
-- fitting many models is a [code smell](https://en.wikipedia.org/wiki/Code_smell) but sometimes you can't avoid it
+- fitting many models is a [code smell](https://en.wikipedia.org/wiki/Code_smell) but sometimes hard to avoid
 - `reformulate()` is useful
 
 ```{r model_table, cache = TRUE}
@@ -274,7 +278,7 @@ for (i in 1:nrow(v3)) {
   model_list[[i]] <- lmer(form, data = dd) ## fit model
 }
 saveRDS(model_list, file = "data/model_list.rds")
-proc.time() - p1
+proc.time() - p1 ## about 10 minutes
 ```
 
 ### extract summary info from models, take a look
@@ -320,14 +324,20 @@ Computes residuals at *population level* (usually a good default but not necessa
 DHARMa::plotResiduals(sr, dd$NPP_log_sc)
 ```
 
-```{r compare_dharma}
-pop_resids <- model.response(model.frame(best_model)) - predict(best_model, re.form=NA)
+```{r compare_dharma, fig.width = 10}
+## https://www.stat.ubc.ca/~jenny/STAT545A/block16_colorsLattice.html
+line_style <- list(plot.line = list(alpha=1, col = "red", lty = 1, lwd = 2))
+pop_resids <- model.response(model.frame(best_model)) - predict(best_model, re.form = NA)
 p1 <- lattice::xyplot(pop_resids ~ dd$NPP_log_sc, cex = 1, type = c("p", "smooth"),
-                      main = "pop resids (DHARMa)")
-p2 <- plot(best_model, resid(.) ~ NPP_log_sc, type=c("p", "smooth"),
-           main = "unit resids (lme4)")
+                      main = "pop-level resids (à la DHARMa)",
+                      par.settings = line_style)
+p2 <- plot(best_model, resid(.) ~ NPP_log_sc, type = c("p", "smooth"),
+           main = "unit-level resids (à la lme4)",
+           par.settings = line_style)
 gridExtra::grid.arrange(p1, p2, nrow = 1)
 ```
+
+(lowest resid is Palearctic, lon=24, lat=
 
 ### spatial correlation
 
@@ -359,7 +369,7 @@ class(best_gamm4) <- c("gamm4", "list") ## so we can tidy etc. (using gamm4_util
 ### compare results
 
 ```{r lme4_gamm4_comp}
-dwplot_ordered(list(best_gamm4, best_model), effects="fixed")
+dwplot_ordered(list(gamm4 = best_gamm4, lme4 = best_model), effects="fixed")
 ```
 
 ## display/description
@@ -383,7 +393,7 @@ ggplot(rsqvals, aes(x=Rsq, xmin = lower.CL, xmax = upper.CL, y = Effect)) +
   geom_pointrange()
 ```
 
-### prettier version
+### all taxa (from the paper)
 
 ![](pix/mbb_fig3a.png)
 
@@ -408,11 +418,12 @@ Can also back-transform, unscale, etc. (see e.g. [Stack Overflow Q1](https://sta
 
 Compute *partial residuals* and display:
 
-```{r remef_compare}
+```{r remef_compare, fig.width = 10}
 dd$remef <- remef::remef(best_model, fix = "NPP_log_sc")
-grid.arrange(gg1,
+grid.arrange(gg1 + ggtitle("full"),
              gg0 + geom_point(data = dd, aes(y = remef, colour = biome)) +
-             scale_y_continuous(limits = range(dd$mbirds_log)),
+             scale_y_continuous(limits = range(dd$mbirds_log)) +
+             ggtitle("partial"),
              nrow=1)
 ```
 
@@ -423,8 +434,10 @@ grid.arrange(gg1,
 - Or use `as.data.frame(ranef())` or `broom.mixed::tidy(model, effects = "ran_vals")`
 - For this problem, REs were interesting but too noisy to draw conclusions from
 
-```{r ranef, fig.width=12}
-grid.arrange(grobs = lattice::dotplot(ranef(best_model)), nrow=1)
+```{r ranef, fig.width=10}
+re_plots <- lattice::dotplot(ranef(best_model))
+print(re_plots$biome_FR)
+print(grid.arrange(grobs = re_plots[2:3], nrow = 1))
 ```
 
 # extras
@@ -479,17 +492,34 @@ beyond intercept-only and diagonal structures
 - REML better for RE covariance estimates
 - ML **required** for model comparison
 
+### convergence example
+
+```{r allFit, eval = FALSE}
+system.time(af <- allFit(model_list[[13]]))
+saveRDS(af, "allfit.rds")
+```
+
+```{r load_allfit}
+if (file.exists("allfit.rds") {
+  af <- readRDS("allfit.rds")
+  summary(af)
+}
+```
+
 ### mixed-model ecosystem in R
 
+[Google sheets list](https://docs.google.com/spreadsheets/d/19itelYaVW0U0gtNtRfqh76ZGt1awlamNcJwT71u_5Uk/edit#gid=1836440275)
+o
 <!-- 
 
 ### To do
 
+- fig 1 switch row order; prettier ecoregion plot
+- borders on spatial autocorr?
 - univariate exploratory plots?
 - does max model not report singularity ...? (`isSingular`/singular tol mismatch?)
+- why does id=0.05 hang the lme4 residual plot?
 - `allFit` example?
-- prettier ecoregions plot?
-- GH/YU side-by-side?
 - lme4: allow full expansion on RHS of bar `(a+b+c|d+e+f)`
 - why doesn't `lattice::qqmath(ranef(best_model))` work?
 
