@@ -13,5 +13,5 @@
        - download contents of `data/` to a `data/` subdirectory in your project dir
        - get `utils.R`, `gamm4_utils.R`, `notes.Rmd`
    - `source("utils.R"); install_all_pkgs()`
-
-
+- [answers to questions from the talk](QA.md)
+- [recording](https://youtu.be/iFikMDuNeVM)
