@@ -67,12 +67,12 @@ title: 'Questions and answers'
  **Answer**: 
  You can still report the variances, and the relative magnitudes of the different variances, even if partitioning gets dicey. 
 
-14 .  Does it make sense if we regress the condition modes of random terms (estimation of each group in (1 | g)) with another variable about g? For example, (1|species) then regress with species traits? 
+14 .  Does it make sense if we regress the condition modes of random terms (estimation of each group in `(1 | g)`) with another variable about ` g`? For example, (1|species) then regress with species traits? 
 
  **Answer**: 
- As far as I understand the question, this is a bad idea. See Hadfield 2010 “The misuse of BLUP in ecology and evolution”. I’d have to think a bit more about a better way to answer the same, or a similar, question. 
+ As far as I understand the question, this is a bad idea. See Hadfield 2010 “The misuse of BLUP in ecology and evolution”. I **think** that the best way to do this is to put the species traits into the model as fixed effects (`lme4` doesn’t care that some covariates vary at the individual level and others vary at the species level); then the species effects will be decomposed into a component that’s explainable by the covariates and a residual component that’s not ... 
 
-15 .  Is it valid to use means separation using emmeans with glmer in lme4? 
+15 .  Is it valid to use means separation using `emmeans` with `glmer` in `lme4`? 
 
  **Answer**: 
  I’m not sure what “means separation” means. Emmeans generally works fine for GLMMs; the only tricky bit for GLMMs with non-identity links is that it can generate biased predictions of the mean if you’re not careful (see the vignettes/documentation) 
@@ -82,27 +82,27 @@ title: 'Questions and answers'
  **Answer**: 
  It’s often the case that adding predictors to the model will make the Cis of individual parameters larger (this is the basis of computations like the Variance Inflation Factor). The more stuff is in the model, the less certainly you can attribute the patterns to the effect of any one particular predictor. 
 
-17 .  I didn't follow the model selection procedure you used. is there a function like dredge that allows you to compare all the possible models for fixed and random effects? 
+17 .  I didn't follow the model selection procedure you used. is there a function like `dredge` that allows you to compare all the possible models for fixed and random effects? 
 
  **Answer**: 
  The `dredge` function in the `MuMIn` package only (AFAIK) does selection on the fixed effects.  I would actually want the opposite (i.e. only selecting on the random effects). I explicitly do not want to do selection on the fixed effects, which is the focal component of my model (i.e. the part I’m really interested in); drawing conclusions after model selection messes up inference. There might be a function somewhere that can simultaneously do selection on both fixed and random components, but I wouldn’t recommend using it. 
 
-18 .  What are your thoughts on using variance weighting (varIdent and other related functions?) 
+18 .  What are your thoughts on using variance weighting (`varIdent` and other related functions?) 
 
  **Answer**: 
  It’s very useful if there’s heteroscedasticity of the level of the residuals that you can’t fix by transforming the response variable. It’s unfortunate that we still haven’t implemented this functionality in `lme4`. `glmmTMB` can do some, but not all of these models (it will allow the variance to depend on covariates, but not on the fitted value of the mean) 
 
-19 .  What are your thoughts on including random effects using s(variable, bs="re") in mgcv? 
+19 .  What are your thoughts on including random effects using `s(variable, bs="re")`  in`mgcv`? 
 
  **Answer**: 
  Random effects via `mgcv` are great.  They’re less efficient for really large random effects (`mgcv` doesn’t use a sparse model matrix at this step), and I don’t know how flexible they are for random-slope models. `gamm4` is clunky, but uses sparse matrices for random effects and allows all of the `mgcv`-style `s()` terms in the model. 
 
-20 .  When fitting polynomial terms in lme4, is it meaningful to include polynomial terms in the random terms too? e.g., (1 + f^2 | g) 
+20 .  When fitting polynomial terms in `lme4`, is it meaningful to include polynomial terms in the random terms too? e.g., `(1 + f^2 | g)` 
 
  **Answer**: 
  Yes. It hurts my brain a little bit to think of these models, but if you have measured multiple values of x in each level then there’s no reason to think that your polynomial effect (or spline, or whatever) doesn’t vary among groups, and to try to estimate that variation 
 
-21 .  sorry, what was the point of using gamm4? 
+21 .  sorry, what was the point of using `gamm4`? 
 
  **Answer**: 
  To allow us to use a spherical spline term from mgcv() to incorporate spatial autocorrelation. 
@@ -112,22 +112,27 @@ title: 'Questions and answers'
  **Answer**: 
  I don’t quite understand the question. The model I presented would be fine for exploring variation among biomes etc., but (1) I would probably need more data (2) I’d have to be more careful about doing model selection on the RE terms (so as not to mess up my inference). 
 
-23 .  What do you think about use variables that violates the assumptions? 
+23 .  For what diagnostics should studentized/ standardized residuals vs. normal residuals be used? 
+
+ **Answer**: 
+ Not really a GLMM question … “standardized” = “studentized” residuals scale the  residuals by their leverage (potential influence). In general you should use standardized/studentized residuals when you’re considering heteroscedasticity (e.g. a scale-location plot) or influence. Looking at `?plot.lm` in base R, standardized residuals are used for the scale-location plot (assessing heteroscedasticity), residual-leverage (assessing influence), and Q-Q (assessing Normality). I may have been a little bit sloppy about this in my examples. [This StackOverflow Q](https://stackoverflow.com/questions/31976284/how-can-i-extract-studentized-residuals-from-mixed-model-lmer) shows how to use `residuals()` + `hatvalues()` to compute studentized resids … 
+
+24 .  What do you think about use variables that violates the assumptions? 
 
  **Answer**: 
  It depends on how bad the violations are, and what kind of violations. For example, people worry a lot about non-Normality of the residuals/conditional distribution of the data, but that’s one of the least important problems (most linear models, LMMs, etc. are quite robust to non-Normality) … note that I didn’t even show a Q-Q plot in the presentation … I would generally try to address the violations if I can (by transformation, using robust models, adding model components that address the violations etc., but it’s important to think about the consequences of assumption-violation (bias? Type I error/undercoverage of confidence intervals?) and their likely magnitudes  
 
-24 .  I would like to know what´s your opinion of using weights (VarIdent, etc...) vs log-transforming variables. 
+25 .  I would like to know what´s your opinion of using weights (VarIdent, etc...) vs log-transforming variables. 
 
  **Answer**: 
  Weights (or using a GLM, which includes a specification for the mean-variance relationship) are more flexible than transformation. Transformation affects lots of components of the model simultaneously: linearity, meaning of interactions, variance-mean relationship, distribution of the residuals.  However, when it works (as in this example) log-transformation is great because (1) it’s very easy and (2) it does address all of the components listed at once. 
 
-25 .  the spatial autocorrelation can be estimated through distance decay relationship too, right? 
+26 .  the spatial autocorrelation can be estimated through distance decay relationship too, right? 
 
  **Answer**: 
  Not sure I understand the question. Instead of drawing a picture I could have computed a spatial variogram or correlogram of the residuals (“distance decay relationship”); I didn’t because it’s a little bit fussy to compute/draw variograms when I have to worry about points on a sphere (great circle distances etc.). I could have used a different model to account for spatial autocorrelation – Gaussian process, Markov random field, etc. (some of this is hinted at in the ‘extras’ notes) 
 
-26 .  Is there any way to make the mixed models accept negative variances, instead of forcing negative vari to zero and generate the Singularity warning? 
+27 .  Is there any way to make the mixed models accept negative variances, instead of forcing negative vari to zero and generate the Singularity warning? 
 
  **Answer**: 
  No, not really. In the population genetics literature there is some stuff about how to deal with negative variances. The way forward with this (although it’s not always simple) is to use a compound symmetric structure that allows negative within-group correlations. See e.g. Molenberghs, Geert, and Geert Verbeke. “A Note on a Hierarchical Interpretation for Negative Variance Components.” Statistical Modelling 11, no. 5 (2011): 389–408. https://doi.org/10.1177/1471082X1001100501.
