@@ -516,6 +516,7 @@ pre code {
 <li><a href="#model-simplificationcovariance-structures">model simplification/covariance structures</a></li>
 <li><a href="#autocorrelation">autocorrelation</a></li>
 <li><a href="#reml-vs-ml">REML vs ML</a></li>
+<li><a href="#convergence-example">convergence example</a></li>
 <li><a href="#mixed-model-ecosystem-in-r">mixed-model ecosystem in R</a></li>
 </ul></li>
 <li><a href="#references">references</a>
@@ -982,8 +983,20 @@ print(grid.arrange(grobs = re_plots[2:3], nrow = 1))</code></pre>
 <li>ML <strong>required</strong> for model comparison</li>
 </ul>
 </div>
+<div id="convergence-example" class="section level3">
+<h3>convergence example</h3>
+<pre class="r"><code>system.time(af &lt;- allFit(model_list[[13]],
+                         parallel = &quot;multicore&quot;,
+                         ncpus = 8))
+saveRDS(af, &quot;allfit.rds&quot;)</code></pre>
+<pre class="r"><code>if (file.exists(&quot;allfit.rds&quot;)) {
+  af &lt;- readRDS(&quot;allfit.rds&quot;)
+  summary(af)
+}</code></pre>
+</div>
 <div id="mixed-model-ecosystem-in-r" class="section level3">
 <h3>mixed-model ecosystem in R</h3>
+<p><a href="https://docs.google.com/spreadsheets/d/19itelYaVW0U0gtNtRfqh76ZGt1awlamNcJwT71u_5Uk/edit#gid=1836440275">Google sheets list</a></p>
 <!-- 
 
 ### To do
@@ -993,7 +1006,6 @@ print(grid.arrange(grobs = re_plots[2:3], nrow = 1))</code></pre>
 - univariate exploratory plots?
 - does max model not report singularity ...? (`isSingular`/singular tol mismatch?)
 - why does id=0.05 hang the lme4 residual plot?
-- `allFit` example?
 - lme4: allow full expansion on RHS of bar `(a+b+c|d+e+f)`
 - why doesn't `lattice::qqmath(ranef(best_model))` work?
 

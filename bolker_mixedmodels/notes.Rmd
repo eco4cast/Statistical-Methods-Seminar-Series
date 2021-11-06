@@ -19,6 +19,10 @@ if (!show_res) { knitr::opts_chunk$set(results="hide", fig.keep="none") }
 
 # Overview (mixed models essentials and subject-matter intro)
 
+## Link to  materials:
+
+https://github.com/eco4cast/Statistical-Methods-Seminar-Series/tree/main/bolker_mixedmodels
+
 ## Mixed models essentials
 
 ### What are mixed models good for?
@@ -337,7 +341,7 @@ p2 <- plot(best_model, resid(.) ~ NPP_log_sc, type = c("p", "smooth"),
 gridExtra::grid.arrange(p1, p2, nrow = 1)
 ```
 
-(lowest resid is Palearctic, lon=24, lat=
+(lowest resid is Palearctic, lon=24, lat=??)
 
 ### spatial correlation
 
@@ -434,7 +438,7 @@ grid.arrange(gg1 + ggtitle("full"),
 - Or use `as.data.frame(ranef())` or `broom.mixed::tidy(model, effects = "ran_vals")`
 - For this problem, REs were interesting but too noisy to draw conclusions from
 
-```{r ranef, fig.width=10}
+```{r ranef, fig.width=10, results = "hide"}
 re_plots <- lattice::dotplot(ranef(best_model))
 print(re_plots$biome_FR)
 print(grid.arrange(grobs = re_plots[2:3], nrow = 1))
@@ -495,12 +499,14 @@ beyond intercept-only and diagonal structures
 ### convergence example
 
 ```{r allFit, eval = FALSE}
-system.time(af <- allFit(model_list[[13]]))
+system.time(af <- allFit(model_list[[13]],
+                         parallel = "multicore",
+                         ncpus = 8))
 saveRDS(af, "allfit.rds")
 ```
 
 ```{r load_allfit}
-if (file.exists("allfit.rds") {
+if (file.exists("allfit.rds")) {
   af <- readRDS("allfit.rds")
   summary(af)
 }
@@ -509,7 +515,7 @@ if (file.exists("allfit.rds") {
 ### mixed-model ecosystem in R
 
 [Google sheets list](https://docs.google.com/spreadsheets/d/19itelYaVW0U0gtNtRfqh76ZGt1awlamNcJwT71u_5Uk/edit#gid=1836440275)
-o
+
 <!-- 
 
 ### To do
@@ -519,7 +525,6 @@ o
 - univariate exploratory plots?
 - does max model not report singularity ...? (`isSingular`/singular tol mismatch?)
 - why does id=0.05 hang the lme4 residual plot?
-- `allFit` example?
 - lme4: allow full expansion on RHS of bar `(a+b+c|d+e+f)`
 - why doesn't `lattice::qqmath(ranef(best_model))` work?
 
