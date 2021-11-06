@@ -1,6 +1,6 @@
 xx <- read.csv("Bolker_PollEV_Questions-1.csv")
 names(xx) <- c("Q", "A", "junk")
-xx <- janitor::remove_empty(xx, "rows")
+xx <- xx[nchar(xx$A)>0,]
 outfile <- "QA.md"
 
 

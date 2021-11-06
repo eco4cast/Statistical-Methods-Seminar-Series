@@ -112,34 +112,24 @@ title: 'Questions and answers'
  **Answer**: 
  I don’t quite understand the question. The model I presented would be fine for exploring variation among biomes etc., but (1) I would probably need more data (2) I’d have to be more careful about doing model selection on the RE terms (so as not to mess up my inference). 
 
-23 .  For what diagnostics should studentized/ standardized residuals vs. normal residuals be used? 
-
- **Answer**: 
-  
-
-24 .  What do you think about use variables that violates the assumptions? 
+23 .  What do you think about use variables that violates the assumptions? 
 
  **Answer**: 
  It depends on how bad the violations are, and what kind of violations. For example, people worry a lot about non-Normality of the residuals/conditional distribution of the data, but that’s one of the least important problems (most linear models, LMMs, etc. are quite robust to non-Normality) … note that I didn’t even show a Q-Q plot in the presentation … I would generally try to address the violations if I can (by transformation, using robust models, adding model components that address the violations etc., but it’s important to think about the consequences of assumption-violation (bias? Type I error/undercoverage of confidence intervals?) and their likely magnitudes  
 
-25 .  I would like to know what´s your opinion of using weights (VarIdent, etc...) vs log-transforming variables. 
+24 .  I would like to know what´s your opinion of using weights (VarIdent, etc...) vs log-transforming variables. 
 
  **Answer**: 
  Weights (or using a GLM, which includes a specification for the mean-variance relationship) are more flexible than transformation. Transformation affects lots of components of the model simultaneously: linearity, meaning of interactions, variance-mean relationship, distribution of the residuals.  However, when it works (as in this example) log-transformation is great because (1) it’s very easy and (2) it does address all of the components listed at once. 
 
-26 .  the spatial autocorrelation can be estimated through distance decay relationship too, right? 
+25 .  the spatial autocorrelation can be estimated through distance decay relationship too, right? 
 
  **Answer**: 
  Not sure I understand the question. Instead of drawing a picture I could have computed a spatial variogram or correlogram of the residuals (“distance decay relationship”); I didn’t because it’s a little bit fussy to compute/draw variograms when I have to worry about points on a sphere (great circle distances etc.). I could have used a different model to account for spatial autocorrelation – Gaussian process, Markov random field, etc. (some of this is hinted at in the ‘extras’ notes) 
 
-27 .  Is there any way to make the mixed models accept negative variances, instead of forcing negative vari to zero and generate the Singularity warning? 
+26 .  Is there any way to make the mixed models accept negative variances, instead of forcing negative vari to zero and generate the Singularity warning? 
 
  **Answer**: 
  No, not really. In the population genetics literature there is some stuff about how to deal with negative variances. The way forward with this (although it’s not always simple) is to use a compound symmetric structure that allows negative within-group correlations. See e.g. Molenberghs, Geert, and Geert Verbeke. “A Note on a Hierarchical Interpretation for Negative Variance Components.” Statistical Modelling 11, no. 5 (2011): 389–408. https://doi.org/10.1177/1471082X1001100501.
  
-
-28 .  . 
-
- **Answer**: 
-  
 
