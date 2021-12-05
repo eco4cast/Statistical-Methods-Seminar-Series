@@ -1,0 +1,13 @@
+base
+ecomix
+sp
+raster
+terra
+lattice
+latticeExtra
+rasterVis
+tidyr
+ggplot2
+reshape2
+forcats
+dplyr

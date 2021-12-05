@@ -1,0 +1,25 @@
+[general]
+creator=R package 'raster'
+created=2016-05-19 14:59:18
+[georeference]
+nrows=50
+ncols=90
+xmin=70.05
+ymin=-54.95
+xmax=79.05
+ymax=-49.95
+projection=+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0
+[data]
+datatype=FLT8S
+byteorder=little
+nbands=3
+bandorder=BIL
+minvalue=70.1:-999.905578613281:0.536135017871857
+maxvalue=78.8:-2.98798704147339:3.48980903625488
+nodatavalue=-1.7e+308
+[legend]
+legendtype=
+values=
+color=
+[description]
+layername=Long_MP:bathymetry:caisom_floor_temperature

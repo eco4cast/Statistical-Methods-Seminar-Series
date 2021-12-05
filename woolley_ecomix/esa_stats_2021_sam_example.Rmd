@@ -1,0 +1,570 @@
+---
+title: "ESA Stats Species Archetype Models (SAM)"
+author:
+- Skipton N.C. Woolley$^{1,2*}$, Scott D. Foster$^3$, Nicole Hill$^4$ & Piers K. Dunstan$^2$
+- $^1$ School of Ecosystem and Forest Sciences, The University of Melbourne, Parkville, Australia, 3010
+- $^2$ Oceans and Atmospheres CSIRO, Hobart, TAS, Australia, 7000
+- $^3$ Data61 CSIRO, Hobart, TAS, Australia, 7000
+- $^4$ University of Tasmania, Hobart, TAS, Australia, 7000
+- $^*$ skipton.woolley@unimelb.edu.au
+date: "06/12/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+csl: mee.csl
+bibliography: esa_lib.bib  
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(fig.align = "center",
+                      cache.extra = list(R.version, sessionInfo(), format(Sys.Date(), '%Y-%m')))
+```
+
+## Setting up R to run [ecomix](https://github.com/skiptoniam/ecomix)
+You can install the development version from github at [ecomix](https://github.com/skiptoniam/ecomix), using the following R code. This will install the master branch which should be tested and working
+```{r,eval=FALSE}
+library(devtools)
+install_github("skiptoniam/ecomix@dev")
+```
+
+### Species Archetype Models
+Species Archetype Models (SAMs) describes how an homogeneous group of species varies with the environment. The environmental gradients are represented by covariates in the model. We refer to this model as `species_mix` in the `ecomix` package. We describe the data as $y_{ij}$, for i=1...n sampling sites, j=1...S species and the unobserved k=1...K archetypes. The model, conditional on archetype group $\textbf{z}_k$, is  
+
+$$
+\begin{equation}
+h[\mathbb{E}(y_{ij}|\textbf{z}_k)] = \alpha_j + g_k(X_{i}^\top\beta_{k}) + \nu_i \tag{1}\label{eq:one}
+\end{equation}
+$$
+
+where $Pr(z_{k}) = \pi_k,$ and $\sum^K_{k=1}{\pi_k=1}$. $\vec{X}_i$ is a design matrix of covariates at site $i$ used to describe the archetype groups and $\nu_i$ is a natural log-offset.  The functional form of $g_k(.)$ can be specified to be any function commonly used within a Generalized Linear Model framework. Including linear, quadratic, spline and interaction terms. Additionally an offset term $\nu_i$ can be included to account for sampling artefacts and are included into the model on a log-scale (e.g. log(area sampled)). We refer to the model as the `species_mix` in the `ecomix` package. 
+
+
+### A simulation study using Species Archetype Models.
+Here we present an example using the Species Archetype Models (SAMs) from our `ecomix` package. Here we present a simulation study to demonstrate the functionality of `species_mix`.
+
+#### Biological and Environmental Data 
+We simulate a set of synthetic species to be fitted using the `species_mix` function. We generate these 100 species using a multivariate normal mixture model, with a Bernoulli realization of the expected means to generate presence and absence data for a random 200 sites derived from our study extent. 
+We simulate a set of environment data which will be used as covariates in the Species Archetype Models.  
+
+```{r}
+library(ecomix)
+library(raster)
+library(sp)
+library(reshape2)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(RandomFields)
+library(knitr)
+
+set.seed(007)
+lenny <- 250
+xSeq <- seq( from=0, to=1, length=lenny)
+ySeq <- seq( from=0, to=1, length=lenny)
+X <- expand.grid( x=xSeq, y=ySeq)
+#define four covariates within the study area
+Mod1 <- RMgauss( var=1, scale=0.2) + RMnugget( var=0.01)
+Mod2 <- RMgauss( var=1, scale=0.5) + RMnugget( var=0.01)
+Mod3 <- RMgauss( var=1, scale=1)# + RMnugget( var=0.01)
+Mod4 <- RMgauss( var=2, scale=0.1) + RMnugget( var=1)
+simmy1 <- RFsimulate( Mod1, x=xSeq, y=ySeq)
+simmy2 <- RFsimulate( Mod2, x=xSeq, y=ySeq)
+simmy3 <- RFsimulate( Mod3, x=xSeq, y=ySeq)
+simmy4 <- RFsimulate( Mod4, x=xSeq, y=ySeq)
+X <- cbind( X, as.numeric( as.matrix( simmy1)), as.numeric( as.matrix( simmy2)),
+            as.numeric( as.matrix( simmy3)), as.numeric( as.matrix( simmy4)))
+X[,-(1:2)] <- apply( X[,-(1:2)], 2, scale)
+colnames( X) <- c("x","y","covar1","covar2","covar3","covar4")
+env <- rasterFromXYZ( X)
+names(env) <- c("Temperature", "Oxygen", "Depth", "Productivity")
+env.df <- as.data.frame(env,xy=TRUE)
+env_dat<-rasterToPoints(env)
+save(env, env.df, env_dat, file="data/sim_env.RData")
+```
+
+#### plot our simulated marine environment
+```{r env plots,fig.align='center', fig.width= 4, fig.height= 4, fig.cap="Simulated environmental variables used in Species Archetype Modelling", echo=FALSE}
+pal <- function (name, flip = FALSE) {
+  cols <- RColorBrewer::brewer.pal(9, name)
+  if (flip) cols <- rev(cols)
+  colorRampPalette(cols)
+}
+
+# plot a map for a single covariate
+plot_cov <- function (coords, values, pal, title) {
+
+  # build a raster
+  data <- data.frame(values)
+  coordinates(data) <- coords
+  spdf <- SpatialPixelsDataFrame(data, tol = 0.0001, data = data.frame(data))
+  ras <- raster(spdf, values = TRUE)
+
+  # plot
+  plot(ras, col = pal(100),
+       legend = FALSE,
+       axes = FALSE,
+       box = FALSE)
+
+  # add title
+  mtext(
+    title,
+    side = 3,
+    cex = 1.2 )
+
+}
+
+# plot all the covariates
+plot_covariates <- function (covariates) {
+
+  covs <- colnames(covariates)[-(1:2)]
+  coords <- covariates[, c("x", "y")]
+
+  palettes <- list(
+    Temperature = pal("YlOrRd"),
+    Oxygen = pal("BuPu"),
+    Depth = pal("YlGnBu"),
+    Productivity = pal("YlGn")
+  )
+
+  titles <- list(
+   Temperature = "Temperature",
+   Oxygen = "Oxygen",
+   Depth = "Depth",
+   Productivity = "Productivity"
+  )
+
+  # temporarily set the plot panel configuration
+  mfrow <- par()$mfrow
+  on.exit(par(mfrow = mfrow), add = TRUE)
+  par(mfrow = c(2, 2), mar=c(2,0,2,0))
+  for (cov in covs) {
+    plot_cov(
+      coords = coords,
+      values = covariates[, cov],
+      pal = palettes[[cov]],
+      title = titles[[cov]]
+    )
+  }
+
+}
+
+plot_covariates(env.df)
+```
+
+### Simulate Biological Data
+We simulated a set of synthetic species to be fitted using the `species_mix` function. We generated the expected species intercepts $\alpha_j$ from a beta distribution, and assign known group level covariates $\beta_k$. $\beta_k$ represents the archetype (group) response to each covariate in the model. We simulated species archetypal responses using the `species_mix.simulate` function. If no known parameters are provided random parameters will be generated for the formula and data provided. Here we provided parameters for the species intercepts (alphas) and the archetype mean responses (betas). 
+
+#### Species intercepts
+First up lets simulate some intercepts - refereed to as alphas ($\alpha_j$) in the model - we do this from a beta distribution
+```{r simulate alphas, fig.align='center'}
+set.seed(42)
+nsp <- 100
+betamean <- 0.3
+betabeta <- 2
+betaalpha <- betamean/(1-betamean) 
+alpha <- rbeta( nsp, betaalpha, betabeta) #prevalence with mean of betaalpha/(betaalpha+betabeta)
+alphas <- log( alpha / ( 1-alpha))  #put them on the right scale-- but note that this is conditional on all covars being zero
+
+# curve( dbeta( x, betaalpha, betabeta), from=0.001, to=0.999) 
+#the distribution that it is drawn from this density. Basically we want some thing that looks like "real world" community data (with lost of rarer things)
+# plot(density(alphas), main="Alphas")
+prev<-exp(alphas)/(1+ exp(alphas))
+par(mfrow=c(1,2))
+curve( dbeta( x, betaalpha, betabeta), from=0.001, to=0.999) #the distribution that it is drawn 
+hist(prev, main="Prevalence")
+```
+
+#### Archetype parameters
+Secondly, lets create some betas ($\beta_k$), these are the slope parameter values for each of the archetypes.
+Now, I've just made up some value here, but you can play around with these in your spare time and see how they change the model.
+
+We are using quadratic terms here, but you could play around with or other functional forms for the archetype responses. You should be able to fit most terms available in GLM, including unpenalised splines (but this still needs a little testing).
+```{r simulated betas}
+betas <- as.matrix(data.frame(Temperature=c(0.75,0,1.5),
+                              Temperature2=c(-0.75,0,0),
+                              Oxygen=c(0,0.5,0),
+                              Oxygen2=c(0,-0.5,0),
+                              Depth= c(-1.5,0.5,1.5),
+                              Depth2= c(0,-0.5,0),
+                              Productivity=c(1,0,-2.5),
+                              Productivity2=c(-1,0,0),
+                              Time=rnorm(3)))
+rownames(betas) <- paste0("Archetype.",1:3)
+print(betas)
+```
+
+Now based on the environmental data simulated above, we can generate a realisation of the data from a set of random sites.
+```{r simdat}
+sim_dat <- data.frame(intercept=1,env_dat[,3:ncol(env_dat)])
+sites<-sample(1:nrow(sim_dat), 200, replace=FALSE)
+env_200<-sim_dat[sites,]
+env_200$Time <- sample(c(0,1),size = 200, replace = TRUE)
+```
+
+#### Formula structure in ecomix
+Now one thing to be aware of in `species_mix` and `regional_mix` is how we use the left hand side of the formula to setup which species are in the model. This might seem a bit clunky to start, but once you start modelling it's really useful as you can change the species response just by changing the formula, as you would do with covariates on the right hand side of the formula.
+
+No another confusing thing, is we declare the species component (left hand side of the formula) in the `archetype_formula` or the `rcp_formula`. 
+
+The species formula is for the species-specific things in the model. For most standard species archetype models this is left just as an intercept. We could extend this later with partial SAMs, where we want to put a set of covariates on the species.
+
+Setting up the formula will look something like this:
+```{r sam formulas}
+sam_form1 <- stats::as.formula(paste0('cbind(',paste(paste0('spp',1:10),
+collapse = ','),")~Temperature+Oxygen+Depth+Productivity"))
+sam_form2 <- stats::as.formula(paste0('cbind(',paste(paste0('spp',sample(100,20)),
+collapse = ','),")~Temperature+Oxygen+Depth+Productivity"))
+sam_form <- stats::as.formula(paste0('cbind(',paste(paste0('spp',1:100),
+collapse = ','),")~Temperature+Oxygen+Depth+Productivity"))
+sp_form <- ~1
+print(sam_form1)
+print(sam_form2)
+print(sam_form)
+print(sp_form)
+```
+
+Now let's simulate the data! We have set up the covariates for our Bernoulli model, so we can now generate the data we will fit using the `species_mix`. 
+
+```{r generate sam data, cache=TRUE}
+sam_form <- stats::as.formula(paste0('cbind(',paste(paste0('spp',1:100),
+collapse = ','),")~poly(Temperature,degree=2,raw=TRUE)+poly(Oxygen,degree=2,raw=TRUE)+poly(Depth,degree=2,raw=TRUE)+poly(Productivity,degree=2,raw=TRUE)+Time"))
+sp_form <- ~1
+simulated_data200 <- species_mix.simulate(archetype_formula=sam_form,
+                                       species_formula=sp_form,
+                                       alpha = alphas,
+                                       beta = betas,
+                                       data = env_200,
+                                       nArchetypes = 3,
+                                       family = binomial())
+```
+
+Now we can have a look at the data structure for the simulated data
+```{r}
+kable(simulated_data200[1:5,c(1:5,101:105)])
+```
+
+Additionally all the simulated parameters and data structure information are stored as attribute's in the simulated data object
+```{r}
+names(attributes(simulated_data200))
+```
+
+### Model fitting and evaluation
+Inspection of the simulated data shows we have generated occurrence records for 100 synthetic species, we assume that across our study domain there were 200 randomly surveyed sites. This means we can model the data using a Bernoulli error distribution. Because we have presence and absences data (occurrences of species at sites) we need to a use a Bernoulli probability model for the observation of species at sites. We can do this by selecting setting the `family='Bernoulli'` or `family=Binomial()` in the `species_mix` function. 
+
+We also need to consider a few other data properties before fitting the model:
+
+* Should we model all the 100 species?
+* How many of the 100 species should we include in the analysis?
+* What covariates and what covariate functional form are likely to be important for driving the distributions of species and archetypes?
+* How many groups should we choose to represent our 100 species? 
+
+First off we can look at the number of observations of each species across all the sites. We can see there are a large number of species with less than 10 occurrences. This is a common feature of multiple species data sets, where there are often long tails of rare species. In this example, we may chose to remove the rare species (< 10 occurrences across all sites). These rarer species could be potentially included in the model (within reason!), but would likely create noise and unexplained variance, making the model harder to fit and estimate. 
+
+For example, work by @hui_mix_2013, removed all species with less that five records across all sites. We will do this by removing all species with less than ten occurrences across out sites. Typically, we can include a greater number of rarer species in species mix models compared to single species SDM methods, which often remove species with occurrence counts less than 20, 30 or 50 observations (or more) [@hui_mix_2013].   
+
+```{r, echo=FALSE, fig.cap='Figure 2. The simulated occurrences for the 100 species. We will remove all species with less than 10 presences across all 200 sites. '}
+count <- table(colSums(simulated_data200[,1:100]))
+occur <- as.numeric(names(count))
+mat <- as.data.frame(cbind(occur,count))
+df1 <- merge(data.frame(occur = 0:max(mat[,1])), mat, all.x=TRUE)
+df1$count[is.na(df1$count)] <- 0 
+bp <- barplot(count~occur, data= df1, xaxt='n', ylab="Count of Species",xlab="Number of Species's Occurrences")
+abline(v=10,col='red',lwd=2)
+bpdf <- cbind(bp,df1)
+axis(1, at=bp[c(0,25,50,75,100,nrow(bpdf)-1)+1,1], labels = c(0,25,50,75,100,""),las=1)
+```
+
+Fitting a Species Archetype Model shares vary similar methodological steps as a standard regression or GLM in R. Once we have selected the response data, we consider which covariates will contribute to explaining the distributions of simulated species across the sites. From a SDM perspective, this might translate to how key environmental gradients shape the niche of the species observed in our geographical extent. The right side of the formula in the `archetype_formula` is meant to represent the functional form and the covariates which will describe the archetypes. To assign which species will contribute to the archetypes we need to generate the left hand side of the `archetype_formula`. This has the following specific form:  `cbind(spp_1,...,spp_i)`. This structure is used so species can be added or removed from the model based on the formula, rather that having to restructure the response data (which is commonly done in multiple species models). The `species_formula` will remain as the default `~1` setting, and assumes species-specific intercepts. This is the resulting formula for the species archetypes in the `species_mix` model.
+
+Below is a small code block with a basic example on how to fit a species_mix model. 
+```{r, eval=TRUE, message=FALSE, warning=FALSE,cache=TRUE}
+## load the ecomix package
+library(ecomix)
+ 
+## Select species with greater than ten occurrences across all sites.
+spdata <- simulated_data200[,1:100] 
+spdata <- spdata[,-which(colSums(simulated_data200[,1:100])<10)] 
+samdat_10p <- cbind(spdata,env_200)
+samdat_10p$Time <- as.factor(ifelse(samdat_10p$Time>0,"Night","Day"))
+
+## Archetype formula
+archetype_formula <- as.formula(paste0(paste0('cbind(',paste(colnames(samdat_10p)[grep("spp",colnames(samdat_10p))],collapse = ", "),") ~ poly(Temperature,degree=2,raw=TRUE)+poly(Oxygen,degree=2,raw=TRUE)+poly(Depth,degree=2,raw=TRUE)+poly(Productivity,degree=2,raw=TRUE)+Time")))
+
+## Species formula
+species_formula <- ~ 1
+
+## Fit a single model
+sam_fit <- species_mix(archetype_formula = archetype_formula, # Archetype formula
+                       species_formula = species_formula,    # Species formula
+                       data = samdat_10p,             # Data
+                       nArchetypes = 3,               # Number of groups (mixtures) to fit
+                       family = binomial(),           # Which family to use
+                       control = list(quiet = FALSE)) # Print all the outputs?
+```
+
+#### Multiple fits and group selection.
+For most mixture models, the likelihood surface is pretty complicated so, we often want to either use multiple ECM refits to get good starting values (within a single model), or alternatively we could fit multiple models using stochastic starting values. Now we can do a multiple fitting to see what which number of groups is appropriate for the data. 
+
+One challenge when developing SAMs (or any finite mixture model) is selecting $k$; the number of archetypes (groups) in the model. The number of archetypes is latent, so must be estimated from the data and the functional form of the covariates. In this example, we know that the optimal number of groups for these data is three, because we simulated the data with these characteristics. However, $k$ is generally not known in real world applications. So one import part of the fitting process is finding $k$, having said that it is also totally fine to define $k$ for say a management objective. We can estimate the "best" number of groups based on the most parsimonious fit to the data. We can do this based on the model log-likelihood, and information criterion such as BIC. We provide a function `species_mix.multifit` which can assist in group selection if a vector of archetypes is provided. By setting the number of starts `nstarts` to $>$ than one, we will also use a multiple fitting approach for estimating the log-likelihood. Below is an example of how one might do this. 
+
+```{r, eval=FALSE}
+nArchetypes <- 1:6
+sam_multifit <- species_mix.multifit(archetype_formula = archetype_formula, # Archetype formula
+                                     species_formula = species_formula,     # Species formula
+                                     data = samdat_10p,                     # Data
+                                     nArchetypes = nArchetypes,             # Number of groups (mixtures) to fit
+                                     nstart = 5,                            # The number of fits per archetype.
+                                     family = binomial(),                  # Which family to use
+                                     control = list(quiet = TRUE,ecm.prefit=FALSE))
+saveRDS(sam_multifit,"model_results/simulated_sams_5_multifit_bernoulli.rds")
+```
+
+```{r, fig.align='center',fig.width=5,fig.height=4,fig.cap="Group selection from the multiple fit function, we can see that three archetypes is the best fit to these data based on Bayesian Information Criterion (BIC)."}
+sam_multifit <- readRDS("model_results/simulated_sams_5_multifit_bernoulli.rds")
+plot(sam_multifit,type="BIC")
+print(sam_multifit)
+```
+
+Now we can select the "best" model and assess the model outputs. We can do this based on BIC, in this case, I simply ask R which model BIC is the smallest and use that as our best model for now. Model selection is actually pretty difficult for mixture models, and we tend to do it in two steps. First, we select the best number of groups based on the full covariate model, and then we might do a backwards, forward, all model selection on the archetype covariates with a fix number of groups (based on the previous steps). I'm actually going to skip the covariate selection step, because we know that all the parameters in the model contribute (because it simulated data). But if you were fitting this model to real world data you might want to think about covariate selection here. 
+
+#### Residuals 
+We can also do model diagnostics using residuals in `ecomix`, by default we use random-quantile-residuals (RQR), sometimes refereed to as Dunn-Symth residuals [@dunn_randomized_1996]. 
+
+```{r plot residuals,fig.align='center'}
+plot(sam_fit)
+```
+They look pretty good :)
+
+We can also inspect troublesome species using the species call, which will plot the residual of the species by using the name of the species, the name should match that used in the model formula.
+```{r plot single species residuals,fig.align='center'}
+plot(sam_fit,species=sam_fit$names$spp[1])
+```
+
+#### Model Uncertainty   
+
+There are a few ways we can estimate uncertainty in the ecomix package. We can do it via a numerical estimation of the hessian (based on the analytically gradient, which is calculated in the c++ code). We can use that to calculate the variance-covariance matrix. Once we have the variance covariance matrix we tend to use a Monte Carlo simulation of the uncertain by drawing random realization from a multivariate normal using the model means and vcov as inputs. This approach is quick, but can be a bit unstable and can results can fail if the hessian cannot be inverted. 
+
+So a more reliable approach is to use a Bayesian Bootstrap [@rubin1981bayesian]. This approach is very similar to case resampling bootstrap, but it does not remove any site's information from the model (which could potentially bias outcomes for small data sets). 
+
+Run bootstrap, I just ran 20 bootstraps here for convenience and speed, but you might want to run say 100 during model testing and maybe 1000 when you have the final model (clearly the size of the model will slow this down so be pragmatic about this choice)
+
+```{r bootstrap, cache=TRUE}
+sam_boot <- bootstrap(sam_fit,nboot = 20, quiet = TRUE)
+```
+
+#### Partial responses
+
+We can also plot the partial responses of covariates as shown in @dunstan_model_2011 & @hui_mix_2013. The idea behind this approach is to understand the response of archetypes to a focal predictor. Firstly, we need to set up a data.frame which allows the focal.predictor to vary and averages over the other effects in the model. We demonstrate how to this in the next code chunk. We can include estimates of uncertainty in the partial response plots by including a bootstrap object into the plot function, otherwise the mean response is plotted without uncertainty in the effect plots.
+
+```{r partial plots, fig.width=6, fig.height=7, fig.cap="Partial responses of archetypes for each covariate in the model."}
+par(mfrow=c(2,3))
+eff.df <- effects_data(focal.predictors = c("Temperature","Oxygen","Productivity","Depth","Time"), sam_fit)
+plot(x = eff.df, object = sam_fit, boot.object = sam_boot, ylim = c(0,1))
+```
+
+You can plot the responses on the "link" scale, which can sometimes help reconcile differences in counts/biomass.
+```{r link partial responses, fig.width=6, fig.height=7, fig.cap="Partial responses of Archetype on the link scale."}
+par(mfrow=c(2,3))
+plot(x = eff.df, object = sam_fit, boot.object = sam_boot, type="link")
+```
+
+We can plot all the species responses, which is not that interesting for this dataset, as we have simulated the data from a known set of covariates.
+```{r species partial responses, fig.width=6, fig.height=7, fig.cap="Partial responses of species for each covariate in the model."}
+par(mfrow=c(2,3))
+plot(x = eff.df, object = sam_fit, boot.object = sam_boot, ylim=c(0,1), response.var = "Species")
+```
+
+We can also sum the responses across the gradient, which might represent something like species richness, or it could be total abundance if say the data was counts.
+```{r sum species partial responses, fig.width=6, fig.height=7, fig.cap="Partial responses of the sum across all species for each covariate in the model."}
+par(mfrow=c(2,3))
+plot(x = eff.df, object = sam_fit, boot.object = sam_boot, response.var = "SpeciesSum")
+```
+
+You can also export plotting single species and single archetypes by passing the `response.var` the name of the species or archetype in the model. Looking at `object$names` well help with this. 
+
+#### Species membership
+
+We are often interested want to know which species belong to each archetype. We can do this by inspecting the posterior species membership to each archetype: $\mathbb{E}(\textbf{z}_{jk}) = \tau_{jk}$
+
+We can look at them directly in the model using `object$tau`, or we can call the `species_membership` function, which can also be used for plotting.
+
+```{r spp membership, fig.align='center',fig.width=6, fig.height=7, fig.cap="Species membership to each archetype."}
+tau <- species_membership(sam_fit)
+plot(tau,margins = c(6,4),cexCol=1)
+```
+
+#### Model prediction
+We can generate predictions for the each archetype in ecomix using `predict()` function. The default is used to generate a point mean estimate for each archetype. With the inclusion of a `bootstrap` object we can also provide confidence intervals or standard error for each prediction. 
+
+```{r predict, cache=TRUE}
+env.df$Time <- factor("Night",levels=c("Day","Night"))
+sam3_pred <- predict(object=sam_fit, boot.object=sam_boot, newdata=env.df)
+```
+
+```{r archetype predictions,echo=FALSE,  fig.align='center', fig.width= 8, fig.height= 10, fig.cap="The predicted probability of each species archetype across the simulated environment and the standard error of the predictions generated based on the Bayesian bootstrap., cache=TRUE"}
+
+pred.df <- data.frame(x=env.df$x,y=env.df$y,sam3_pred$bootPreds)
+pred.dfse <- cbind(pred.df,sam3_pred$bootSEs)
+colnames(pred.dfse)[6:8] <- paste0(colnames(pred.dfse)[6:8],".se")
+pred.dfse <- pred.dfse[,c(1,2,3,6,4,7,5,8)]
+
+pal <- function (name, flip = FALSE) {
+  cols <- RColorBrewer::brewer.pal(9, name)
+  if (flip) cols <- rev(cols)
+  colorRampPalette(cols)
+}
+
+# plot a map for a single prediction
+plot_pred <- function (coords, values, pal, title) {
+
+  # build a raster
+  data <- data.frame(values)
+  coordinates(data) <- coords
+  spdf <- sp::SpatialPixelsDataFrame(data, tol = 0.0001, data = data.frame(data))
+  ras <- raster(spdf, values = TRUE)
+
+  # brks <- seq(0, 1, length(100))
+  # lab.brks <- c(0,0.25,0.5,0.75,1)
+  
+  # plot
+  plot(ras, col = pal(100),
+       legend=TRUE, horizontal = TRUE, 
+       # legend.args = list(text='Prob', side = 1, line = 2),
+       # zlim=c(0,1),
+       axes = FALSE,
+       box = FALSE)
+
+  # add title
+  mtext(
+    title,
+    side = 3,
+    cex = 1.2 )
+
+}
+
+# plot all the predictions
+plot_predictions <- function (predictions) {
+
+  preds <- colnames(predictions)[-(1:2)]
+  coords <- predictions[, c("x", "y")]
+
+  palettes <- list(
+    Archetype1 = pal("PuOr"),
+    Archetype2 = pal("PuOr"),
+    Archetype3 = pal("PuOr"),
+    Archetype1.se = pal("Oranges"),
+    Archetype2.se = pal("Oranges"),
+    Archetype3.se = pal("Oranges")
+  )
+
+  titles <- list(
+    Archetype1 = "Archetype 1 Mean",
+    Archetype2 = "Archetype 2 Mean",
+    Archetype3 = "Archetype 3 Mean",
+    Archetype1.se = "Archetype 1 Std. Error",
+    Archetype2.se = "Archetype 2 Std. Error",
+    Archetype3.se = "Archetype 3 Std. Error"
+  )
+
+  # temporarily set the plot panel configuration
+  mfrow <- par()$mfrow
+  on.exit(par(mfrow = mfrow), add = TRUE)
+  par(mfrow = c(3, 2), mar=c(4,2,2,2))
+  for (pred in preds) {
+    plot_pred(
+      coords = coords,
+      values = predictions[, pred],
+      pal = palettes[[pred]],
+      title = titles[[pred]]
+    )
+  }
+
+}
+
+plot_predictions(pred.dfse)
+```
+
+Or you can plot the lower and upper confidence intervals along side the means.
+```{r archetype predictions CI, echo=FALSE, fig.align='center', fig.width= 8, fig.height= 10,fig.cap="The predicted probability of each species archetype across the simulated environment with confidence intervals.", cache=TRUE}
+pred.df.lwr <- data.frame(x=env.df$x,y=env.df$y,sam3_pred$bootCIs[,,"lower"])
+pred.df.lwr.mn <- cbind(pred.df.lwr,sam3_pred$bootPreds)
+pred.df.lwr.mn.upr <- cbind(pred.df.lwr.mn,sam3_pred$bootCIs[,,"upper"])
+colnames(pred.df.lwr.mn.upr)[3:5] <- paste0(colnames(pred.df.lwr.mn.upr)[3:5],".lwr")
+colnames(pred.df.lwr.mn.upr)[6:8] <- paste0(colnames(pred.df.lwr.mn.upr)[6:8],".mn")
+colnames(pred.df.lwr.mn.upr)[9:11] <- paste0(colnames(pred.df.lwr.mn.upr)[9:11],".upr")
+
+plot_pred <- function (coords, values, pal, title) {
+
+  # build a raster
+  data <- data.frame(values)
+  coordinates(data) <- coords
+  spdf <- sp::SpatialPixelsDataFrame(data, tol = 0.0001, data = data.frame(data))
+  ras <- raster(spdf, values = TRUE)
+
+  # brks <- seq(0, 1, length(100))
+  # lab.brks <- c(0,0.25,0.5,0.75,1)
+  
+  # plot
+  plot(ras, col = pal(100),
+       legend=TRUE, horizontal = TRUE, 
+       # legend.args = list(text='Prob', side = 1, line = 2),
+       zlim=c(0,1),
+       axes = FALSE,
+       box = FALSE)
+
+  # add title
+  mtext(
+    title,
+    side = 3,
+    cex = 1.2 )
+
+}
+
+plot_predictions <- function (predictions) {
+
+  preds <- colnames(predictions)[-(1:2)]
+  coords <- predictions[, c("x", "y")]
+
+  palettes <- list(
+    Archetype1.lwr = pal("BuPu"),
+    Archetype2.lwr = pal("BuPu"),
+    Archetype3.lwr = pal("BuPu"),
+    Archetype1.mn = pal("BuPu"),
+    Archetype2.mn = pal("BuPu"),
+    Archetype3.mn = pal("BuPu"),
+    Archetype1.upr = pal("BuPu"),
+    Archetype2.upr = pal("BuPu"),
+    Archetype3.upr = pal("BuPu")
+  )
+
+  titles <- list(
+    Archetype1.lwr = "Archetype 1 Lower CI.",
+    Archetype2.lwr = "Archetype 2 Lower CI.",
+    Archetpe3.lwr = "Archetype 3 Lower CI.",
+    Archetype1.mn = "Archetype 1 Mean",
+    Archetype2.mn = "Archetype 2 Mean",
+    Archetype3.mn = "Archetype 3 Mean",
+    Archetype1.upr = "Archetype 1 Upper CI.",
+    Archetype2.upr = "Archetype 2 Upper CI.",
+    Archetype3.upr = "Archetype 3 Upper CI."
+  )
+
+  # temporarily set the plot panel configuration
+  # mfcol <- par()$mfrow
+  # on.exit(par(mfrow = mfrow), add = TRUE)
+  par(mfcol = c(3, 3), mar=c(4,2,2,2))
+  for (pred in preds) {
+    plot_pred(
+      coords = coords,
+      values = predictions[, pred],
+      pal = palettes[[pred]],
+      title = titles[[pred]]
+    )
+  }
+
+}
+
+plot_predictions(pred.df.lwr.mn.upr[,c(1,2,3,6,9,4,7,10,5,8,11)])
+```
+
+### References

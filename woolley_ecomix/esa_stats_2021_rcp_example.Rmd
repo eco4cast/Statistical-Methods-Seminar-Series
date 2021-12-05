@@ -1,0 +1,485 @@
+---
+title: "ESA Stats Region of Common Profiles (RCP)"
+author:
+- Skipton N.C. Woolley$^{1,2*}$, Scott D. Foster$^3$, Nicole Hill$^4$ & Piers K. Dunstan$^2$
+- $^1$ School of Ecosystem and Forest Sciences, The University of Melbourne, Parkville, Australia, 3010
+- $^2$ Oceans and Atmospheres CSIRO, Hobart, TAS, Australia, 7000
+- $^3$ Data61 CSIRO, Hobart, TAS, Australia, 7000
+- $^4$ University of Tasmania, Hobart, TAS, Australia, 7000
+- $^*$ skipton.woolley@unimelb.edu.au
+date: "06/12/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+csl: mee.csl
+bibliography: esa_lib.bib  
+---
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(fig.align = "center",
+                      cache.extra = list(R.version, sessionInfo(), format(Sys.Date(), '%Y-%m')))
+```
+
+## Setting up R to run [ecomix](https://github.com/skiptoniam/ecomix)
+You can install the development version from github at [ecomix](https://github.com/skiptoniam/ecomix), using the following R code. This will install the master branch which should be tested and working
+```{r,eval=FALSE}
+library(devtools)
+install_github("skiptoniam/ecomix@dev")
+```
+
+## Regions of Common Profile Models
+The Regions of Common Profile (RCP) models are a type of 'Mixture-of-Experts Models' and try to describe how homogeneous groups of **sites** vary with the environment. This is done by grouping sites based on the biological content (species observed at each site) and determine how these groups vary across environmental or physical gradients [@foster_modelling_2013]. This approach assumes that assemblages of species at a site exists, and each assemblage can be described by its mean expectation of all species at that site.  Within the the RCP model, these indicies are used to represent the data: sites as $i = 1...n$, species as $j = 1...S$ and groups as $k = 1...K$ (we refer to these as RCPs). The model conditional expectation (given site membership) for all species is, $\mathbb{E}(y_{ij}|z_{ik}=1)$. The model can be described as:
+
+$$
+\begin{equation}
+h[\mathbb{E}(y_{ij}|z_{ik})] = \alpha_j + Z_i^\top\tau_j + W_i^\top\gamma_j + \nu_i \tag{2}\label{eq:two}
+\end{equation}
+$$
+Where $\alpha_j$ is a species-specific intercept, $Z_j^\top$ is a indicator function used to describe which RCPs the site is in. $\tau_j$ is a $K \times 1$ vector of species parameters containing the step changes for each RCP. $W_i$ is a design matrix which represents covariates that could account for sampling biases in the observation of species at site $i$, $\gamma_j$ are species-specific parameters which describes these biases. 
+
+$z_i$ is an unobserved variable and is treated as a latent factor. The model assumes that $z_i$ is the result of a multinomial sampling process with one trial and $k x 1$ probability vector $\pi_i$. The RCP model allows the RCP probability vector $\pi_i$ to vary depending on the observation site's position in environmental and geographical space. Where $\pi_i=h(X_i)$, and $X_i$ is the design matrix which contains the environmental and spatial covariates to describe site $i$. $h(.)$ is represented by a additive logistic function [@aitchison_statistical_1982] whose $k$th component is represented as:
+
+$$
+\begin{equation}
+\pi_{ik}\triangleq h(X_i,k)=
+\begin{cases}
+  \frac{exp(X_i^\top\beta_k)}{1 + \sum_{m=1}^{K-1}\exp{X_i^\top\beta_{k'}}}, & \text{if $1 \leq k \leq K-1$,}\\
+  1 + \sum_{m=1}^{K-1}\pi_{ik'}, & \text{if $k = K$,}\tag{3}\label{eq:three}
+\end{cases}
+\end{equation}
+$$
+
+In this function $\beta_k$ holds the parameter values for the $k$th linear combination which represents the environmental or physical covariates used to describe each RCP. The RCP model available for use in the `ecomix` package are comprised of the following three components. A model for RCP type which is described by the environmental and spatial covariates, a model for the expectation of each species' observations with reference to the sampling approach or artefacts and a parametric model for how the observations vary around these mean species-specific expectations. RCP to date have largely been used for describing bioregions, ecoregions or assemblages classification for spatial management [@hill_model-based_2017; @lyons_simultaneous_2017]. So this model can viewed as model-based bioregionalisation approach [@woolley_bioregions_2020;@hill_determining_2020]. Where the probability of each RCP type occurring at each prediction point (site or prediction surface), represents a probabilistic distribution of an assemblage of species. These probabilities for each RCP can be directly assessed via equation 4.
+
+### Example. Modelling sub-Antarctic demersal fishes abundance with seasonal effects
+#### Data and model structure
+ 
+Here we present an example that uses the Region of Common Profiles (RCP) model to generate an ecoregionalisation for the Kerguelen Plateau in the Sub-Antarctic region [@foster_ecological_2017]. This is an example which comes from a independent random stratified trawl survey to understand the status of the target and bycatch species in the Kerguelen Region. This study looked at fish abundance data from the Autumn 1990, Summer 1992 & Spring 1993. 
+
+
+Load packages and helper functions
+```{r load packages,message=FALSE,warning=FALSE}
+library(ecomix)
+library(raster)
+library(rasterVis)
+library(tidyr)
+library(ggplot2)
+library(reshape2)
+library(forcats)
+library(dplyr)
+source("R/RCP_Helper_Functions.R")
+```
+
+
+Plot up the study area, we can see there are season differences in where they sampled.
+
+```{r plot study area}
+fish<-read.csv("data/SubAntFish_bioenv.csv")
+pred_masked<-brick("data/pred_masked")
+
+df.env <- as.data.frame(rasterToPoints(pred_masked[[2]]))
+# species <-names(fish)[9:23]
+sites <- data.frame(fish[,3:5])
+ggplot(sites)+
+  geom_raster(data = df.env,aes(x=x,y=y,fill=bathymetry))+
+  geom_point(aes(x=Long_MP,Lat_MP,colour=Season))+
+  scale_colour_manual(values = c(2,3,4))+
+  scale_fill_distiller(palette = "BuPu")+
+  theme_bw()+
+  theme(panel.grid = element_blank()) +
+  xlab("Latitude")+
+  ylab("Longitude")
+```
+
+RCPs have the ability to include observational processes in models development. For example, in the Kerguelen data set there is a seasonal signal in the distribution of fishes, as they shift with changes in the environment conditions around the Kerguelen Plateau. We can included environmental covariates used to describe RCP. In this example, we include longitude, log transformed average depth at the seafloor and average temperature at the seafloor as independent second degree polynomials. This is just a bit of code to standardise and center covariates.
+
+```{r,echo=FALSE,message=FALSE, warning= FALSE}
+fish<-read.csv("data/SubAntFish_bioenv.csv")
+species <-names(fish)[9:23]
+
+#Generate data.file with orthogonal polynomial terms
+rcp_env_vars <- c("Long_MP", "log_depth", "caisom_floor_temperature")
+rcp_poly <- poly_data(poly_vars=rcp_env_vars, degree=c(2,2,2), 
+                     id_vars="HaulIndex",sample_vars="Season", 
+                     species_vars=species, data=fish)
+rcp_data <- rcp_poly$rcp_data
+```
+
+We are fitting a relatively simple model here, so let's have a look at the covariates we will in the model and for spatial prediction.
+
+```{r,echo=FALSE, warning=FALSE,fig.align="center",fig.height=3,fig.width=6,fig.cap="Environmental predictors across Kerguelen Plateau"}
+#Load rasters and create dataframe of prediction space
+pred_masked<-brick("data/pred_masked")
+
+#convert rasters to dataframe and log transform depth
+pred_space_rcp<-as.data.frame(rasterToPoints(
+  subset(pred_masked, c("Long_MP", "bathymetry", "caisom_floor_temperature"))))
+pred_space_rcp<-na.omit(pred_space_rcp)
+pred_space_rcp$log_depth<-log(pred_space_rcp$bathymetry* -1)
+
+# Transform using stored polys, predict and plot results
+rcp_poly_pred<-poly_pred_space(pred_space_rcp, rcp_poly$poly_output,
+                               sampling_vals="Autumn/Winter",
+                               sampling_name="Season",
+                               sampling_factor_levels = c("Autumn/Winter","Spring","summer"))
+
+pal <- function (name, flip = FALSE) {
+  cols <- RColorBrewer::brewer.pal(9, name)
+  if (flip) cols <- rev(cols)
+  colorRampPalette(cols)
+}
+
+# plot a map for a single covariate
+plot_cov <- function (coords, values, pal, title) {
+
+  # build a raster
+  data <- data.frame(values)
+  coordinates(data) <- coords
+  spdf <- SpatialPixelsDataFrame(data, tol = 0.0001, data = data.frame(data))
+  ras <- raster(spdf, values = TRUE)
+
+  # plot
+  plot(ras, col = pal(100),
+       legend = FALSE,
+       axes = FALSE,
+       box = FALSE)
+
+  # add title
+  mtext(
+    title,
+    side = 3,
+    cex = 1.2 )
+
+}
+
+# plot all the covariates
+plot_covariates <- function (covariates) {
+
+  covs <- colnames(covariates)[-(1:2)]
+  coords <- covariates[, c("x", "y")]
+
+  palettes <- list(
+    Long_MP = pal("YlGnBu"),
+    bathymetry = pal("BuPu"),
+    caisom_floor_temperature = pal("YlOrRd")
+  )
+
+  titles <- list(
+   Long_MP = "Longitude",
+   bathymetry = "Bathymetry",
+   caisom_floor_temperature = "Temperature"
+  )
+
+  # temporarily set the plot panel configuration
+  mfrow <- par()$mfrow
+  on.exit(par(mfrow = mfrow), add = TRUE)
+  par(mfrow = c(1, 3), mar=c(2,0,2,0))
+  for (cov in covs) {
+    plot_cov(
+      coords = coords,
+      values = covariates[, cov],
+      pal = palettes[[cov]],
+      title = titles[[cov]]
+    )
+  }
+
+}
+
+plot_covariates(pred_space_rcp[,-6])
+
+```
+
+### Model fitting and evaluation
+
+#### Multiple fits and group selection
+
+We need to set up the RCP formula, which describes the functional form of the model for each RCP. The RCP formula uses the same structure as the Archetype formula in `species_mix`. We also need to setup the species formula, which describes covariates which can control for sampling bias in the data. This uses a standard GLM formula without the response, e.g. `~1+x`.
+
+```{r}
+#create RCP formula
+RCP_formula <- as.formula(paste("cbind(",paste(species, collapse=", "),")~",paste(names(rcp_data)[18:23], collapse="+")))
+species_formula <- ~ Season
+print(RCP_formula)
+print(species_formula)
+```
+
+The log-likelihoods in RCP models are quiet complicated and it can be hard to optimise the global maxima, there can be a decent chance of getting stuck in local minima. We use a few strategies to help with this during optimisation. 
+
+Firstly, we use the multiples fits approach again, given decent model-based starting values, we add a little random variation and use multiple fits (like in `species_mix`) to converge on the best log-likelihood per group $k$. In this example, we use 10 starts (for speed), but the original work by Nicole used 100 starts per $K$.
+
+The second trick we can use, is to to include penalties in the model, we can think of these as greasing the wheels of model fitting, and can help to smooth the log-likelihood a little. 
+
+```{r fit RCPs, cache=TRUE, message=FALSE}
+control <- list(penalty=0.01, penalty.tau=10, penalty.gamma=10, penalty.disp=c(10,sqrt(10)),quiet=TRUE)
+nstarts <-10
+max.nRCP <- 6
+nRCPs_samp <- list()
+for( ii in 2:max.nRCP)
+  nRCPs_samp[[ii]] <- regional_mix.multifit(rcp_formula = RCP_formula,
+                                            species_formula = species_formula,
+                                            data = rcp_data,
+                                            nRCP=ii,
+                                            family = "negative.binomial",
+                                            inits="random2",
+                                            control=control,
+                                            nstart=nstarts)
+save(nRCPs_samp,file = "model_results/sub_ant_rcps_multifit_10starts.RData")
+```
+
+
+Once we have run the multiple fits we selected the based on Bayesian Information Criteria (BIC). Here we present a plot of the BIC values from a 10 fits per each group, set between one and six RCPs. Three RCPs appears to be the most parsimonious fit to the data. 
+
+```{r rcp bic chunk, fig.width=6}
+load('model_results/sub_ant_rcps_multifit_10starts.RData')
+max.nRCP<-6
+grps <- 2:max.nRCP
+RCPsamp_BICs <- sapply( nRCPs_samp[-1], function(x) sapply( x, function(y) y$BIC))
+RCPsamp_minPosteriorSites <- cbind(181, sapply( nRCPs_samp[-1], function(y) sapply( y, function(x) min( colSums( x$postProbs)))))
+
+RCPsamp_minBICs <- apply( RCPsamp_BICs, 2, min)
+
+df2a <- data.frame(grps=2:max.nRCP,bic=RCPsamp_minBICs)
+df2b <- data.frame(grps=rep(2:max.nRCP, each=nrow( RCPsamp_BICs)),bic=as.numeric(RCPsamp_BICs))
+gg1 <- ggplot(df2a,aes(x=grps,y=bic))+
+      geom_point()+
+      geom_line()+
+      geom_point(data=df2b,aes(x=grps,y=bic))+
+      scale_x_continuous("Number of Groups", labels = as.character(grps), breaks = grps)+
+      ylab("BIC")
+gg1
+```
+
+#### Refitting of 'best' model.
+
+Because of the size of the model objects that are returned from `regional_mix.multi` are quiet large. We set the function use the call `titbits=FALSE`, this basically just returns the bare bones of the model. To do some more interesting things, like diagnostics, we need to refit the model using the 'best fit', by passing the coefficients as starting values when refitting.
+
+```{r refit}
+RCPsamp_goodun <- which.min( RCPsamp_BICs[,3])
+control <- list( optimise=TRUE, quiet=TRUE)
+RCPsamp_fin <- regional_mix(rcp_formula = RCP_formula,
+                            species_formula = species_formula,
+                            nRCP = 3,
+                            data = rcp_data,
+                            family = "negative.binomial",
+                            inits = unlist(nRCPs_samp[[3]][[RCPsamp_goodun]]$coef),
+                            control = control)
+saveRDS(RCPsamp_fin,"model_results/best_sub_ant_rcp_mod.rds")
+```
+
+#### Diagnostics
+
+We can check residuals using random-quantile-residuals (RQR) [@Dunn1996deviance]. We for convenience we can look at the residuals on the log scale. Similar to `species_mix` we can look at species or change the prediction scales if so desired.   
+
+```{r residuals}
+plot(RCPsamp_fin, type="RQR", fitted.scale="log") #looks OK
+```
+
+#### Stability of RCPs 
+
+Another diagnostic we can look at is the stability of the RCP logls using hold-out-samples. This checks how robust the RCPs are to removing subsets of the data, and also check to see how robust the log-likelihood is to hold-out-tests.
+
+This function is very slow (takes about 10 mins), so I've run it previously and saved the results. 
+```{r stability, eval = FALSE}
+stab.results <- stability.regional_mix(RCPsamp_fin,
+                                   oosSizeRange=c(1,5,10,20,30,40),
+                                   mc.cores=1,
+                                   doPlot=FALSE)
+save(stab.results, file = "model_results/stability_results_rcp.RData")
+```
+
+The plots produced are: 
+  * Leave-some-out Cook's distance (see cooks.distance.regional_mix) against holdout sample size;
+  * The predictive log-likelihood for times sites, against the holdout sample size. In both plots, the values from the original model have been added to the plot.
+
+```{r plot stability}
+load("model_results/stability_results_rcp.RData")
+par(mfrow=c(1,2))
+plot(stab.results, minWidth=2, ncuts=111)
+```
+
+#### Explore the dispersion parameter as estimated in the Negative Binomial model
+
+Just checking to make sure there are no crazy estimates of dispersion (theta) parameter.
+
+```{r}
+hist(exp(RCPsamp_fin$coefs$disp), xlab="Dispersion Parameter", 
+     main="Negative Binomial Model", col="grey", cex.main=0.8, cex=0.8, cex.lab=0.8 )
+```
+
+#### Bootstrapping for uncertainty
+
+When doing predictions with RCPs we can get an estimate of uncertainty using a "Bayesian Bootstrap", as discussed in the species_mix example. We can use the bootstrap object in a bunch of plotting and exploratory tools.  
+
+```{r bayesbootstrap, eval=TRUE, message=FALSE, warning=FALSE}
+rcpsamp_boots <- bootstrap(RCPsamp_fin, type="BayesBoot", nboot=20, mc.cores=1, quiet = TRUE)
+save(rcpsamp_boots, file="model_results/rcps_bayes_bootstrap.RData")
+```
+
+#### Species Profiles
+
+One thing we are often interested in understanding is the average profile of each species to each RCP. We can think of this as the mean abundance of each species in each RCP. This can be useful for understanding the distribution of species across RCPs, but also as a way of model checking (assuming you have a grab of where species should be) to make sure that nothing weird is happening with the species. 
+
+```{r,eval = TRUE, fig.width=8}
+load('model_results/rcps_bayes_bootstrap.RData')
+RCP_abund_samp <- regional_mix.species_profile(RCPsamp_fin,rcpsamp_boots,type='link')
+
+df1 <- rbind(cbind(CI="lwr",melt(RCP_abund_samp$overall$lower)),
+      cbind(CI="mean",melt(RCP_abund_samp$overall$mean)),
+      cbind(CI="upper",melt(RCP_abund_samp$overall$upper)))
+colnames(df1)<- c("CI","RCP","Species","Value")
+df1$Species <- gsub("[.]"," ",df1$Species)
+df <- reshape(df1,idvar=c("Species","RCP"),timevar = "CI",direction = "wide")
+
+rcp_name1 <- c(
+  RCP1 = "RCP 1",
+  RCP2 = "RCP 2",
+  RCP3 = "RCP 3")
+
+gg2 <- ggplot(data =  df) +
+       geom_point(aes(x = Value.mean, y = fct_reorder(Species,desc(Species))))+
+       geom_linerange(aes(xmin= Value.lwr,xmax=Value.upper, y=   fct_reorder(Species,desc(Species))))+
+  facet_wrap(~ RCP, labeller = labeller(RCP = rcp_name1),nrow = 1)+
+  ggtitle('Average species profile per RCP')+
+  geom_vline(xintercept = 0, col="gray20",lty=2)+
+  theme_bw()+
+  theme(panel.grid = element_blank()) +
+  xlab("log(Abundance)")+
+  ylab("Species")
+gg2
+```
+
+#### The effect of sampling covariates
+
+This shows the estimated sampling coefficients for each species. Here the coefficients are relative to the Autumn sampling. Interval estimates are the 95% confidence intervals obtained from the Bayesian Bootstrapping.
+
+```{r sampling effects for species, fig.height=8,fig.width=6, echo=FALSE}
+boot_obj <- rcpsamp_boots 
+gammas <-grepl("gamma",dimnames(boot_obj)[[2]])
+gammas_boot <-boot_obj[,gammas]
+
+tmp <- data.frame(mean=as.numeric(unname(colMeans(gammas_boot))),
+                   t(apply(gammas_boot, 2, quantile, probs=c(0.025, 0.975))),
+                   sampling_var=sapply(strsplit(dimnames(gammas_boot)[[2]],"_"), "[", 3),
+                   Species=factor(sapply(strsplit(dimnames(gammas_boot)[[2]],"_"), "[", 1)))
+
+names(tmp)[2:3]<-c("lower", "upper")
+tmp$Species <- gsub("."," ", tmp$Species, fixed=TRUE)
+tmp$Species <- as.factor(tmp$Species) #convert back to factor
+tmp$Species <- factor(tmp$Species, levels=levels(tmp$Species))
+params <- subset(tmp,sampling_var%in%c("Seasonsummer","SeasonSpring"))
+
+axis.locs <- rev(seq(0.5,by=.5,length.out=length(unique(params$Species))))
+locs <- rep(axis.locs,each= length(unique(params$sampling_var)))+seq(-0.05,0.05,length.out = length(unique(params$sampling_var)))
+params <- params[order(params[,5]),]
+
+cols <- c("firebrick","dodgerblue")[rep(2:1,15)]
+idx <- rev(as.numeric(matrix(1:30,nrow=2,byrow=TRUE)))
+par(mar=c(4,8,2,2))
+plot(locs ~ mean,
+       data = params,
+       type = "n",
+       ylab = "",
+       xlab = "",
+       axes = FALSE,
+       bty = "n",
+       ylim = c(0, max(locs)),
+       xlim = range(c(params$lower, params$upper)))
+abline(v = 0, lwd = 1, col = grey(0.5), lty = 3)
+axis(side = 1, tcl = -0.3)
+axis(side = 2, lty = 0,hadj = .8, at = axis.locs, labels = unique(params$Species), cex.axis=0.7, las = 1, col.lab = grey(0.3))
+title(xlab = "Estimate", col.lab = grey(0.3))
+
+for (i in seq_len(nrow(params))) {
+    lines(x = c(params$lower[i], params$upper[i]),
+          y = cbind(locs[i], locs[i]),
+          lwd = 2,col=cols[i],lty=rep(c(1,3),15)[i])
+  }
+
+points(locs ~ params$mean,
+         pch = 16,
+         cex  = 1.2,
+         col = cols)
+
+legend(x="topright",
+       legend=c("summer","spring"),
+       col= c("firebrick","dodgerblue"),
+       pch=16,
+       cex=0.9,
+       bty="n")
+
+
+```
+
+#### Spatial prediction
+
+We can look at the spatial predictions of the RCPs, because RCPs predictions are generated from a multinomial distribution, we always have a probability (sum to 1 across RCPs for each site). This can sometimes be confusing if the data are counts and you are expecting to see a count or density. 
+
+Predicted probability of observing each of the RCPs, from the model with sampling effects. We present the point mean predictions and 95% confidence intervals.
+
+```{r predict RCPs}
+RCPsamp_SpPreds <- predict(object=RCPsamp_fin, object2=rcpsamp_boots, newdata=rcp_poly_pred)
+pred.df <- data.frame(x=pred_space_rcp$x,y=pred_space_rcp$y,
+                      lwr=RCPsamp_SpPreds$bootCIs[,,1],
+                      mean=RCPsamp_SpPreds$bootPred,
+                      upper=RCPsamp_SpPreds$bootCIs[,,2])
+pred.dfm <- melt(pred.df,id.vars = c("x","y"))
+pred.dfm$RCP <- gsub(".*[.]","",pred.dfm$variable)
+pred.dfm$CI <- gsub("[.].*","",pred.dfm$variable)
+df <- data.frame(pred.dfm)
+
+rcp_name <- c(
+  RCP_1 = "RCP 1",
+  RCP_2 = "RCP 2",
+  RCP_3 = "RCP 3")
+
+ci_name <- c(
+  lwr = "Lower CI",
+  mean = "Point Prediction",
+  upper = "Upper CI")
+colour <- c("#dddddd","#fff5f0","#fee0d2","#fcbba1","#fc9272","#fb6a4a","#ef3b2c","#cb181d","#a50f15","#67000d")#,"#000000")
+breaks <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
+
+gg3 <- ggplot() +
+  geom_raster(data =  df, aes(x = x, y = y, fill=value)) +
+  scale_fill_gradientn(colours = colour, na.value = 'transparent')+
+  labs("Probability")+
+  facet_grid(RCP ~ CI, labeller = labeller(RCP = rcp_name, CI=ci_name), switch = "y")+
+  coord_fixed()+
+  theme_bw()+
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        # axis.text.x = element_text(angle = 30),
+        panel.grid = element_blank(),
+        legend.position="bottom",
+        legend.box="horizontal") +
+  xlab("Longitude")+
+  ylab("Latitude")
+gg3
+```
+
+#### Hard classification
+
+If so desired we can do a hard classification based on the probability of observing  each RCPs. We could then consider these ecoregions, based on the species used in this model. 
+
+```{r}
+df <- data.frame(x=pred_space_rcp$x,y=pred_space_rcp$y,
+                 value=apply(RCPsamp_SpPreds$bootPred,1,which.max))
+cols <- RColorBrewer::brewer.pal(3,"Dark2")
+gg4 <- ggplot() +
+  geom_raster(data =  df, aes(x = x, y = y, fill=factor(value))) +
+  scale_fill_brewer(palette = "Dark2", na.value = 'transparent',name="Ecoregion")+
+  coord_fixed()+
+  theme_bw()+
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        # axis.text.x = element_text(angle = 30),
+        panel.grid = element_blank(),
+        legend.position="bottom",
+        legend.box="horizontal") +
+  xlab("Longitude")+
+  ylab("Latitude")
+gg4
+```
+
+### References
+
