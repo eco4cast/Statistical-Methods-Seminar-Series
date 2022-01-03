@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Generalized Additive Models with R and mgcv</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Gavin Simpson" />
+    <meta name="date" content="2022-01-03" />
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="slides.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: inverse, middle, left, my-title-slide, title-slide
+
+# Generalized Additive Models with R and mgcv
+### Gavin Simpson
+### January 3, 2022
+
+---
+
+
+
+
+# Today's topics
+
+* What are GAMs?
+
+* How to fit GAMs in R with **mgcv**
+
+* Examples
+
+---
+
+# Logistics
+
+* HTML Slide deck [bit.ly/gam-efi-22]() &amp;copy; Simpson (2022) [![Creative Commons Licence](https://i.creativecommons.org/l/by/4.0/88x31.png)](http://creativecommons.org/licenses/by/4.0/)
+
+* RMarkdown [bit.ly/gam-efi-git](https://bit.ly/gam-efi-git)
+
+---
+class: inverse middle center subsection
+
+# Motivating example
+
+---
+
+# HadCRUT4 time series
+
+![](gams_files/figure-html/hadcrut-temp-example-1.svg)&lt;!-- --&gt;
+
+???
+
+Hadley Centre NH temperature record ensemble
+
+How would you model the trend in these data?
+
+---
+
+# Linear Models
+
+`$$y_i \sim \mathcal{N}(\mu_i, \sigma^2)$$`
+
+`$$\mu_i = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + \cdots + \beta_j x_{ji}$$`
+
+Assumptions
+
+1. linear effects of covariates are good approximation of the true effects
+2. conditional on the values of covariates, `\(y_i | \mathbf{X} \sim \mathcal{N}(0, \sigma^2)\)`
+3. this implies all observations have the same *variance*
+4. `\(y_i | \mathbf{X}\)` are *independent*
+
+An **additive** model address the first of these
+
+---
+class: inverse center middle subsection
+
+# Why bother with anything more complex?
+
+---
+
+# Is this linear?
+
+![](gams_files/figure-html/hadcrut-temp-example-1.svg)&lt;!-- --&gt;
+
+---
+
+# Polynomials perhaps&amp;hellip;
+
+![](gams_files/figure-html/hadcrut-temp-polynomial-1.svg)&lt;!-- --&gt;
+
+---
+
+# Polynomials perhaps&amp;hellip;
+
+We can keep on adding ever more powers of `\(\boldsymbol{x}\)` to the model &amp;mdash; model selection problem
+
+**Runge phenomenon** &amp;mdash; oscillations at the edges of an interval &amp;mdash; means simply moving to higher-order polynomials doesn't always improve accuracy
+
+---
+class: inverse middle center subsection
+
+# GAMs offer a solution
+
+---
+
+# HadCRUT data set
+
+
+```r
+## Load Data
+tmpf &lt;- tempfile()
+curl_download("https://www.metoffice.gov.uk/hadobs/hadcrut4/data/current/time_series/HadCRUT.4.6.0.0.annual_nh.txt", tmpf)
+gtemp &lt;- read.table(tmpf, colClasses = rep("numeric", 12))[, 1:2] # only want some of the variables
+names(gtemp) &lt;- c("Year", "Temperature")
+gtemp &lt;- as_tibble(gtemp)
+```
+
+[File format](https://www.metoffice.gov.uk/hadobs/hadcrut4/data/current/series_format.html)
+
+---
+
+# HadCRUT data set
+
+
+```r
+gtemp
+```
+
+```
+## # A tibble: 172 × 2
+##     Year Temperature
+##    &lt;dbl&gt;       &lt;dbl&gt;
+##  1  1850          NA
+##  2  1851          NA
+##  3  1852          NA
+##  4  1853          NA
+##  5  1854          NA
+##  6  1855          NA
+##  7  1856          NA
+##  8  1857          NA
+##  9  1858          NA
+## 10  1859          NA
+## # … with 162 more rows
+```
+
+---
+
+# Fitting a GAM
+
+
+```r
+library('mgcv')
+m &lt;- gam(Temperature ~ s(Year), data = gtemp, method = 'REML')
+summary(m)
+```
+
+.smaller[
+
+```
+## 
+## Family: gaussian 
+## Link function: identity 
+## 
+## Formula:
+## Temperature ~ s(Year)
+## 
+## Parametric coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)  
+## (Intercept) -0.020523   0.009733  -2.109   0.0365 *
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Approximate significance of smooth terms:
+##           edf Ref.df   F p-value    
+## s(Year) 7.838   8.65 145  &lt;2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## R-sq.(adj) =   0.88   Deviance explained = 88.5%
+## -REML = -91.196  Scale est. = 0.016294  n = 172
+```
+]
+
+---
+
+# Fitted GAM
+
+![](gams_files/figure-html/hadcrtemp-plot-gam-1.svg)&lt;!-- --&gt;
+
+---
+class: inverse middle center big-subsection
+
+# GAMs
+
+---
+
+# Generalized Additive Models
+
+&lt;br /&gt;
+
+![](resources/tradeoff-slider.png)
+
+.references[Source: [GAMs in R by Noam Ross](https://noamross.github.io/gams-in-r-course/)]
+
+???
+
+GAMs are an intermediate-complexity model
+
+* can learn from data without needing to be informed by the user
+* remain interpretable because we can visualize the fitted features
+
+---
+
+# How is a GAM different?
+
+In LM we model the mean of data as a sum of linear terms:
+
+`$$y_i = \beta_0 +\sum_j \color{red}{ \beta_j x_{ji}} +\epsilon_i$$`
+
+A GAM is a sum of _smooth functions_ or _smooths_
+
+`$$y_i = \beta_0 + \sum_j \color{red}{s_j(x_{ji})} + \epsilon_i$$`
+
+where `\(\epsilon_i \sim N(0, \sigma^2)\)`, `\(y_i \sim \text{Normal}\)` (for now)
+
+Call the above equation the **linear predictor** in both cases
+
+---
+
+# Fitting a GAM in R
+
+```r
+model &lt;- gam(y ~ s(x1) + s(x2) + te(x3, x4), # formuala describing model
+             data = my_data_frame,           # your data
+             method = 'REML',                # or 'ML'
+             family = gaussian)              # or something more exotic
+```
+
+`s()` terms are smooths of one or more variables
+
+`te()` terms are the smooth equivalent of *main effects + interactions*
+
+---
+
+# How did `gam()` *know*?
+
+![](gams_files/figure-html/hadcrtemp-plot-gam-1.svg)&lt;!-- --&gt;
+
+---
+class: inverse
+background-image: url('./resources/rob-potter-398564.jpg')
+background-size: contain
+
+# What magic is this?
+
+.footnote[
+&lt;a style="background-color:black;color:white;text-decoration:none;padding:4px 6px;font-family:-apple-system, BlinkMacSystemFont, &amp;quot;San Francisco&amp;quot;, &amp;quot;Helvetica Neue&amp;quot;, Helvetica, Ubuntu, Roboto, Noto, &amp;quot;Segoe UI&amp;quot;, Arial, sans-serif;font-size:12px;font-weight:bold;line-height:1.2;display:inline-block;border-radius:3px;" href="https://unsplash.com/@robpotter?utm_medium=referral&amp;amp;utm_campaign=photographer-credit&amp;amp;utm_content=creditBadge" target="_blank" rel="noopener noreferrer" title="Download free do whatever you want high-resolution photos from Rob Potter"&gt;&lt;span style="display:inline-block;padding:2px 3px;"&gt;&lt;svg xmlns="http://www.w3.org/2000/svg" style="height:12px;width:auto;position:relative;vertical-align:middle;top:-1px;fill:white;" viewBox="0 0 32 32"&gt;&lt;title&gt;&lt;/title&gt;&lt;path d="M20.8 18.1c0 2.7-2.2 4.8-4.8 4.8s-4.8-2.1-4.8-4.8c0-2.7 2.2-4.8 4.8-4.8 2.7.1 4.8 2.2 4.8 4.8zm11.2-7.4v14.9c0 2.3-1.9 4.3-4.3 4.3h-23.4c-2.4 0-4.3-1.9-4.3-4.3v-15c0-2.3 1.9-4.3 4.3-4.3h3.7l.8-2.3c.4-1.1 1.7-2 2.9-2h8.6c1.2 0 2.5.9 2.9 2l.8 2.4h3.7c2.4 0 4.3 1.9 4.3 4.3zm-8.6 7.5c0-4.1-3.3-7.5-7.5-7.5-4.1 0-7.5 3.4-7.5 7.5s3.3 7.5 7.5 7.5c4.2-.1 7.5-3.4 7.5-7.5z"&gt;&lt;/path&gt;&lt;/svg&gt;&lt;/span&gt;&lt;span style="display:inline-block;padding:2px 3px;"&gt;Rob Potter&lt;/span&gt;&lt;/a&gt;
+]
+
+---
+class: inverse
+background-image: url('resources/wiggly-things.png')
+background-size: contain
+
+???
+
+---
+
+
+
+# Wiggly things
+
+.center[![](resources/spline-anim.gif)]
+
+???
+
+GAMs use splines to represent the non-linear relationships between covariates, here `x`, and the response variable on the `y` axis.
+
+---
+
+# Basis expansions
+
+In the polynomial models we used a polynomial basis expansion of `\(\boldsymbol{x}\)`
+
+* `\(\boldsymbol{x}^0 = \boldsymbol{1}\)` &amp;mdash; the model constant term
+* `\(\boldsymbol{x}^1 = \boldsymbol{x}\)` &amp;mdash; linear term
+* `\(\boldsymbol{x}^2\)`
+* `\(\boldsymbol{x}^3\)`
+* &amp;hellip;
+
+---
+
+# Splines
+
+Splines are *functions* composed of simpler functions
+
+Simpler functions are *basis functions* &amp; the set of basis functions is a *basis*
+
+When we model using splines, each basis function `\(b_k\)` has a coefficient `\(\beta_k\)`
+
+Resultant spline is a the sum of these weighted basis functions, evaluated at the values of `\(x\)`
+
+`$$s(x) = \sum_{k = 1}^K \beta_k b_k(x)$$`
+
+---
+
+# Splines formed from basis functions
+
+![](gams_files/figure-html/basis-functions-1.svg)&lt;!-- --&gt;
+
+???
+
+Splines are built up from basis functions
+
+Here I'm showing a cubic regression spline basis with 10 knots/functions
+
+We weight each basis function to get a spline. Here all the basisi functions have the same weight so they would fit a horizontal line
+
+---
+
+# Weight basis functions &amp;#8680; spline
+
+
+
+.center[![](resources/basis-fun-anim.gif)]
+
+???
+
+But if we choose different weights we get more wiggly spline
+
+Each of the splines I showed you earlier are all generated from the same basis functions but using different weights
+
+---
+
+# How do GAMs learn from data?
+
+![](gams_files/figure-html/example-data-figure-1.svg)&lt;!-- --&gt;
+
+???
+
+How does this help us learn from data?
+
+Here I'm showing a simulated data set, where the data are drawn from the orange functions, with noise. We want to learn the orange function from the data
+
+---
+
+# Maximise penalised log-likelihood &amp;#8680; &amp;beta;
+
+
+
+.center[![](resources/gam-crs-animation.gif)]
+
+???
+
+Fitting a GAM involves finding the weights for the basis functions that produce a spline that fits the data best, subject to some constraints
+
+
+---
+class: inverse middle center subsection
+
+# Avoid overfitting our sample
+
+---
+class: inverse center middle large-subsection
+
+# How wiggly?
+
+$$
+\int_{\mathbb{R}} [f^{\prime\prime}]^2 dx = \boldsymbol{\beta}^{\mathsf{T}}\mathbf{S}\boldsymbol{\beta}
+$$
+
+---
+class: inverse center middle large-subsection
+
+# Penalised fit
+
+$$
+\mathcal{L}_p(\boldsymbol{\beta}) = \mathcal{L}(\boldsymbol{\beta}) - \frac{1}{2} \lambda\boldsymbol{\beta}^{\mathsf{T}}\mathbf{S}\boldsymbol{\beta}
+$$
+
+---
+
+# Wiggliness
+
+`$$\int_{\mathbb{R}} [f^{\prime\prime}]^2 dx = \boldsymbol{\beta}^{\mathsf{T}}\mathbf{S}\boldsymbol{\beta} = \large{W}$$`
+
+(Wiggliness is 100% the right mathy word)
+
+We penalize wiggliness to avoid overfitting
+
+---
+
+# Making wiggliness matter
+
+`\(W\)` measures **wiggliness**
+
+(log) likelihood measures closeness to the data
+
+We use a **smoothing parameter** `\(\lambda\)` to define the trade-off, to find
+the spline coefficients `\(B_k\)` that maximize the **penalized** log-likelihood
+
+`$$\mathcal{L}_p = \log(\text{Likelihood})  - \lambda W$$`
+
+---
+
+# HadCRUT4 time series
+
+![](gams_files/figure-html/hadcrut-temp-penalty-1.svg)&lt;!-- --&gt;
+
+---
+
+# Picking the right wiggliness
+
+.pull-left[
+Two ways to think about how to optimize `\(\lambda\)`:
+
+* Predictive: Minimize out-of-sample error
+* Bayesian:  Put priors on our basis coefficients
+]
+
+.pull-right[
+Many methods: AIC, Mallow's `\(C_p\)`, GCV, ML, REML
+
+* **Practically**, use **REML**, because of numerical stability
+* Hence `gam(..., method = "REML")`
+]
+
+.center[
+![Animation of derivatives](./resources/remlgcv.png)
+]
+
+---
+
+# Maximum allowed wiggliness
+
+We set **basis complexity** or "size" `\(k\)`
+
+This is _maximum wigglyness_, can be thought of as number of small functions that make up a curve
+
+Once smoothing is applied, curves have fewer **effective degrees of freedom (EDF)**
+
+EDF &lt; `\(k\)`
+
+---
+
+# Maximum allowed wiggliness
+
+`\(k\)` must be *large enough*, the `\(\lambda\)` penalty does the rest
+
+*Large enough* &amp;mdash; space of functions representable by the basis includes the true function or a close approximation to the tru function
+
+Bigger `\(k\)` increases computational cost
+
+In **mgcv**, default `\(k\)` values are arbitrary &amp;mdash; after choosing the model terms, this is the key user choice
+
+**Must be checked!** &amp;mdash; `gam.check()`
+
+
+---
+
+# GAM summary so far
+
+1. GAMs give us a framework to model  flexible nonlinear relationships
+
+2. Use little functions (**basis functions**) to make big functions (**smooths**)
+
+3. Use a **penalty** to trade off wiggliness/generality 
+
+4. Need to make sure your smooths are **wiggly enough**
+
+---
+class: inverse middle center subsection
+
+# A cornucopia of smooths
+
+---
+
+# A cornucopia of smooths
+
+The type of smoother is controlled by the `bs` argument (think *basis*)
+
+The default is a low-rank thin plate spline `bs = 'tp'`
+
+Many others available
+
+.row[
+.col-6[
+
+* Cubic splines `bs = 'cr'`
+* P splines `bs = 'ps'`
+* Cyclic splines `bs = 'cc'` or `bs = 'cp'`
+* Adaptive splines `bs = 'ad'`
+* Random effect `bs = 're'`
+* Factor smooths `bs = 'fs'`
+]
+.col-6[
+
+* Duchon splines `bs = 'ds'`
+* Spline on the sphere `bs = 'sos'`
+* MRFs `bs = 'mrf'`
+* Soap-film smooth `bs = 'so'`
+* Gaussian process `bs = 'gp'`
+]
+]
+
+---
+
+# A bestiary of conditional distributions
+
+A GAM is just a fancy GLM
+
+Simon Wood &amp; colleagues (2016) have extended the *mgcv* methods to some non-exponential family distributions
+
+.row[
+.col-6[
+* `binomial()`
+* `poisson()`
+* `Gamma()`
+* `inverse.gaussian()`
+* `nb()`
+* `tw()`
+* `mvn()`
+* `multinom()`
+]
+.col-6[
+* `betar()`
+* `scat()`
+* `gaulss()`
+* `ziplss()`
+* `twlss()`
+* `cox.ph()`
+* `gamals()`
+* `ocat()`
+]
+]
+
+---
+
+# Smooth interactions
+
+Two ways to fit smooth interactions
+
+1. Bivariate (or higher order) thin plate splines
+    * `s(x, z, bs = 'tp')`
+    * Isotropic; single smoothness parameter for the smooth
+	* Sensitive to scales of `x` and `z`
+2. Tensor product smooths
+    * Separate marginal basis for each smooth, separate smoothness parameters
+	* Invariant to scales of `x` and `z`
+	* Use for interactions when variables are in different units
+	* `te(x, z)`
+
+---
+
+# Tensor product smooths
+
+There are multiple ways to build tensor products in *mgcv*
+
+1. `te(x, z)`
+2. `t2(x, z)`
+3. `s(x) + s(z) + ti(x, z)`
+
+`te()` is the most general form but not usable in `gamm4::gamm4()` or *brms*
+
+`t2()` is an alternative implementation that does work in `gamm4::gamm4()` or *brms*
+
+`ti()` fits pure smooth interactions; where the main effects of `x` and `z` have been removed from the basis
+
+---
+
+# Factor smooth interactions
+
+Two ways for factor smooth interactions
+
+1. `by` variable smooths
+    * entirely separate smooth function for each level of the factor
+	* each has it's own smoothness parameter
+	* centred (no group means) so include factor as a fixed effect
+	* `y ~ f + s(x, by = f)`
+2. `bs = 'fs'` basis
+    * smooth function for each level of the function
+	* share a common smoothness parameter
+	* fully penalized; include group means
+	* closer to random effects
+	* `y ~ s(x, f, bs = 'fs')`
+
+---
+
+# Random effects
+
+When fitted with REML or ML, smooths can be viewed as just fancy random effects
+
+Inverse is true too; random effects can be viewed as smooths
+
+If you have simple random effects you can fit those in `gam()` and `bam()` without needing the more complex GAMM functions `gamm()` or `gamm4::gamm4()`
+
+These two models are equivalent
+
+
+```r
+m_nlme &lt;- lme(travel ~ 1, data = Rail, ~ 1 | Rail, method = "REML") 
+
+m_gam  &lt;- gam(travel ~ s(Rail, bs = "re"), data = Rail, method = "REML")
+```
+
+---
+
+# Random effects
+
+The random effect basis `bs = 're'` is not as computationally efficient as *nlme* or *lme4* for fitting
+
+* complex random effects terms, or
+* random effects with many levels
+
+Instead see `gamm()` and `gamm4::gamm4()`
+
+* `gamm()` fits using `lme()`
+* `gamm4::gamm4()` fits using `lmer()` or `glmer()`
+
+For non Gaussian models use `gamm4::gamm4()`
+
+
+---
+
+# Next steps
+
+Read Simon Wood's book!
+
+Lots more material on our ESA GAM Workshop site
+
+[https://noamross.github.io/mgcv-esa-workshop/]()
+
+Noam Ross' free GAM Course
+
+&lt;https://noamross.github.io/gams-in-r-course/&gt;
+
+A couple of papers:
+
+.smaller[
+1. Simpson, G.L., 2018. Modelling Palaeoecological Time Series Using Generalised Additive Models. Frontiers in Ecology and Evolution 6, 149. https://doi.org/10.3389/fevo.2018.00149
+2. Pedersen, E.J., Miller, D.L., Simpson, G.L., Ross, N., 2019. Hierarchical generalized additive models in ecology: an introduction with mgcv. PeerJ 7, e6876. https://doi.org/10.7717/peerj.6876
+]
+
+Also see my blog: [www.fromthebottomoftheheap.net](http://www.fromthebottomoftheheap.net)
+
+---
+
+# Acknowledgments
+
+.row[
+
+.col-6[
+
+### Funding
+
+.center[![:scale 70%](./resources/NSERC_C.svg)]
+]
+
+.col-6[
+
+### Fellow GAM colleagues
+
+David Miller
+
+Eric Pedersen
+
+Noam Ross
+
+]
+
+]
+
+### Slides
+
+* HTML Slide deck [bit.ly/gam-efi-22]() &amp;copy; Simpson (2022) [![Creative Commons Licence](https://i.creativecommons.org/l/by/4.0/88x31.png)](http://creativecommons.org/licenses/by/4.0/)
+* RMarkdown [bit.ly/gam-efi-git](https://bit.ly/gam-efi-git)
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="macros.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
