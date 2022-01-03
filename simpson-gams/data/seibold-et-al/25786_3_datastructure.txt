@@ -1,0 +1,906 @@
+{
+  "Id": 1089,
+  "Title": "25786 data structure",
+  "Description": "Data structure for structured data",
+  "inUse": true,
+  "Structured": true,
+  "Variables": [
+    {
+      "Id": 20124,
+      "Label": "Habitat_type",
+      "Description": "forest or grassland",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 1,
+        "Name": "string",
+        "Description": "String",
+        "SystemType": "String"
+      }
+    },
+    {
+      "Id": 20125,
+      "Label": "Sampling_regime",
+      "Description": "specifies if data belongs to the annual times series or to the time series with three year intervals (forest)",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 1,
+        "Name": "string",
+        "Description": "String",
+        "SystemType": "String"
+      }
+    },
+    {
+      "Id": 20126,
+      "Label": "PlotIDYear",
+      "Description": "specifies the plot name and year of collection",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 1,
+        "Name": "string",
+        "Description": "String",
+        "SystemType": "String"
+      }
+    },
+    {
+      "Id": 20127,
+      "Label": "Exploratory",
+      "Description": "specifies Region: Alb, Hainich, Schorfheide",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 1,
+        "Name": "string",
+        "Description": "String",
+        "SystemType": "String"
+      }
+    },
+    {
+      "Id": 20128,
+      "Label": "PlotID",
+      "Description": "number of plot",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 1,
+        "Name": "string",
+        "Description": "String",
+        "SystemType": "String"
+      }
+    },
+    {
+      "Id": 20129,
+      "Label": "CollectionYear",
+      "Description": "year of sampling",
+      "isOptional": true,
+      "unit": {
+        "Id": 44,
+        "Name": "Date-yyyy",
+        "Description": "the year represented by a 4 digit number",
+        "Dimension": {
+          "Name": "date time",
+          "Description": "format for date and time representation; SI unit: YYYY-MM-DD hh:mm:ss; BEXIS units: mm:ss, hh:mm:ss,  hh:mm, yyyy, yyyy-MM-dd, yyyy-MM-ddThh:mm:ss",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 22,
+        "Name": "date-yyyy",
+        "Description": "",
+        "SystemType": "DateTime"
+      }
+    },
+    {
+      "Id": 20130,
+      "Label": "biomass",
+      "Description": "biomass of all identified arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 74,
+        "Name": "milligram",
+        "Description": "mass unit",
+        "Dimension": {
+          "Name": "mass",
+          "Description": "weight of an object; SI unit: kg; BEXIS units: µg, mg, g, kg, kDA",
+          "Specification": "L(0,0)M(1,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20131,
+      "Label": "abundance_unidentified_identified",
+      "Description": "abundance of all arthropods including those which could not be identified to species level",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20132,
+      "Label": "abundance_identified",
+      "Description": "abundance of all arthropod identified to species level",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20133,
+      "Label": "species",
+      "Description": "total number of arthropod species",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20134,
+      "Label": "abundance_carnivore",
+      "Description": "abundance of carnivore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20135,
+      "Label": "species_carnivore",
+      "Description": "number of carnivore arthropod species",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20136,
+      "Label": "biomass_carnivore",
+      "Description": "biomass of carnivore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 74,
+        "Name": "milligram",
+        "Description": "mass unit",
+        "Dimension": {
+          "Name": "mass",
+          "Description": "weight of an object; SI unit: kg; BEXIS units: µg, mg, g, kg, kDA",
+          "Specification": "L(0,0)M(1,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20137,
+      "Label": "abundance_herbivore",
+      "Description": "abundance of herbivore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20138,
+      "Label": "species_herbivore",
+      "Description": "number of herbivore arthropod species",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20139,
+      "Label": "biomass_herbivore",
+      "Description": "biomass of herbivore arthropod species",
+      "isOptional": true,
+      "unit": {
+        "Id": 74,
+        "Name": "milligram",
+        "Description": "mass unit",
+        "Dimension": {
+          "Name": "mass",
+          "Description": "weight of an object; SI unit: kg; BEXIS units: µg, mg, g, kg, kDA",
+          "Specification": "L(0,0)M(1,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20140,
+      "Label": "abundance_detritomycetophage",
+      "Description": "abundance of detriomycetophore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20141,
+      "Label": "species_detritomycetophage",
+      "Description": "species number of detriomycetophore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20142,
+      "Label": "biomass_detritomycetophage",
+      "Description": "biomass of of detriomycetophore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 74,
+        "Name": "milligram",
+        "Description": "mass unit",
+        "Dimension": {
+          "Name": "mass",
+          "Description": "weight of an object; SI unit: kg; BEXIS units: µg, mg, g, kg, kDA",
+          "Specification": "L(0,0)M(1,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20143,
+      "Label": "abundance_omnivore",
+      "Description": "abundance of omnivore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20144,
+      "Label": "species_omnivore",
+      "Description": "species number of omnivore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20145,
+      "Label": "biomass_omnivore",
+      "Description": "biomass of omnivore arthropods",
+      "isOptional": true,
+      "unit": {
+        "Id": 74,
+        "Name": "milligram",
+        "Description": "mass unit",
+        "Dimension": {
+          "Name": "mass",
+          "Description": "weight of an object; SI unit: kg; BEXIS units: µg, mg, g, kg, kDA",
+          "Specification": "L(0,0)M(1,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20146,
+      "Label": "abundance_weak_disperser",
+      "Description": "abundance of weak disperser",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20147,
+      "Label": "species_weak_disperser",
+      "Description": "species number of weak disperser",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20148,
+      "Label": "biomass_weak_disperser",
+      "Description": "biomass of weak disperser",
+      "isOptional": true,
+      "unit": {
+        "Id": 74,
+        "Name": "milligram",
+        "Description": "mass unit",
+        "Dimension": {
+          "Name": "mass",
+          "Description": "weight of an object; SI unit: kg; BEXIS units: µg, mg, g, kg, kDA",
+          "Specification": "L(0,0)M(1,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20149,
+      "Label": "abundance_strong_disperser",
+      "Description": "abundance of strong disperser",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20150,
+      "Label": "species_strong_disperser",
+      "Description": "species number of strong disperser",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 7,
+        "Name": "integer",
+        "Description": "An integer number",
+        "SystemType": "Int64"
+      }
+    },
+    {
+      "Id": 20151,
+      "Label": "biomass_strong_disperser",
+      "Description": "biomass of strong disperser",
+      "isOptional": true,
+      "unit": {
+        "Id": 74,
+        "Name": "milligram",
+        "Description": "mass unit",
+        "Dimension": {
+          "Name": "mass",
+          "Description": "weight of an object; SI unit: kg; BEXIS units: µg, mg, g, kg, kDA",
+          "Specification": "L(0,0)M(1,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20152,
+      "Label": "landuse_intensity",
+      "Description": "landuse intensity: LUI in grasslands and ForMI in forests",
+      "isOptional": true,
+      "unit": {
+        "Id": 1,
+        "Name": "none",
+        "Description": "If no unit is used.",
+        "Dimension": {
+          "Name": "none",
+          "Description": "none",
+          "Specification": "If no unit is used."
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20153,
+      "Label": "mean_winter_temperature",
+      "Description": "mean temperature for winter months (Nov-Feb) as derived from plot weather stations with gap filling from neighbouring stations and DWD stations",
+      "isOptional": true,
+      "unit": {
+        "Id": 156,
+        "Name": "degree celsius",
+        "Description": "temperature unit",
+        "Dimension": {
+          "Name": "temperature",
+          "Description": "intensity of heat in a body or object; SI unit: K; BEXIS units: deg C",
+          "Specification": "L(0,0)M(0,0)T(0,0)I(0,0)P(1,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20154,
+      "Label": "precipitation_sum_growing_preriod",
+      "Description": "precipitation sum for months of the growing season (Mar-Oct) derived from the RADOLAN product of the German Weather Service",
+      "isOptional": true,
+      "unit": {
+        "Id": 58,
+        "Name": "millimeter",
+        "Description": "length unit",
+        "Dimension": {
+          "Name": "length",
+          "Description": "measure of distance; SI unit: m; BEXIS units:  µm, mm, cm, m, km",
+          "Specification": "L(1,0)M(0,0)T(0,0)I(0,0)P(0,0)N(0,0)J(0,0)"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20155,
+      "Label": "grassland_cover_250",
+      "Description": "percentage cover of grassland and semi-natural vegetation within 250m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20156,
+      "Label": "grassland_cover_500",
+      "Description": "percentage cover of grassland and semi-natural vegetation within 500m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20157,
+      "Label": "grassland_cover_1000",
+      "Description": "percentage cover of grassland and semi-natural vegetation within 1000m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20158,
+      "Label": "grassland_cover_1500",
+      "Description": "percentage cover of grassland and semi-natural vegetation within 1500m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20159,
+      "Label": "arable_cover_1000",
+      "Description": "percentage cover of arable crops within 1000m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20160,
+      "Label": "arable_cover_1500",
+      "Description": "percentage cover of arable crops within 1500m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20161,
+      "Label": "arable_cover_250",
+      "Description": "percentage cover of arable crops within 250m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    },
+    {
+      "Id": 20162,
+      "Label": "arable_cover_500",
+      "Description": "percentage cover of arable crops within 500m surrounding a plot based on ATKIS DLM 2010",
+      "isOptional": true,
+      "unit": {
+        "Id": 116,
+        "Name": "percentage",
+        "Description": "ratio expressed as a fraction of 100",
+        "Dimension": {
+          "Name": "parts-per expression",
+          "Description": "ratio expressed as fraction; SI unit: %; BEXIS units: %, ‰, ppm",
+          "Specification": "dimensionless"
+        },
+        "MeasurementSystem": "Unknown"
+      },
+      "dataType": {
+        "Id": 6,
+        "Name": "double",
+        "Description": "A real number",
+        "SystemType": "Double"
+      }
+    }
+  ]
+}
