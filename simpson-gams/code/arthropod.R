@@ -165,7 +165,7 @@ draw(m4)
 system.time(
 m5 <- gam(abundance_identified ~ region + # regional means fixef
             s(year_f, bs = "re") + # year-to-year effects
-            s(year, by = region) + # region-specific smooths
+            s(year, by = region, k = 20) + # region-specific smooths
             s(year, plot_id, bs = "fs", k = 5), # plot-specific trends
           data = seibold,
           method = "REML",
@@ -276,7 +276,8 @@ m_cov <- gam(abundance_identified ~
              family = nb(),
              method = "REML",
              control = ctrl,
-             data = seibold)
+             data = seibold,
+             select = TRUE)
   )
 
 # plot the smooths
@@ -331,3 +332,17 @@ y2y %>%
   labs(x = NULL)
 
 draw(m_cov2, select = "s(year_s,plot_id)")
+
+# year, day-of-year
+
+# knots <- list(day_of_year = c(0.5, 366.5))
+# gam(y ~ s(year) + s(day_of_year, bs = "cc"), knots = knots)
+
+# knots <- list(month = c(0.5, 12.5))
+# gam(y ~ s(year) + s(month, bs = "cc", k = 12), knots = knots)
+
+# gam(y ~ te(year, month, bs = c("tp", "cc")), knots = knots)
+# gam(y ~ s(year) + s(month, bs = "cc", k = 12) +
+#       ti(year, month, bs = c("tp", "cc")), knots = knots)
+
+
