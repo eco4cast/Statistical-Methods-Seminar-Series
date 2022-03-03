@@ -20,7 +20,7 @@ raw <- read.csv(url(URL))
 # Keep relevant columns: ID, time, longitude, latitude, temperature
 data_all <- raw[, c(9, 3, 4, 5, 6)]
 colnames(data_all) <- c("ID", "time", "lon", "lat", "temp")
-data_all$time <- as.POSIXct(data_all$time)
+data_all$time <- as.POSIXct(data_all$time, format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
 
 # Just keep 2000 observations to save time with model fitting
 data <- data_all[c(which(data_all$ID == unique(data_all$ID)[5])[1:1000],
