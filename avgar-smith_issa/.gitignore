@@ -1,0 +1,5 @@
+*.Rproj.user
+*.Rhistory
+temp/
+README.html
+scrap.R
