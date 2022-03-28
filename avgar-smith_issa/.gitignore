@@ -2,4 +2,5 @@
 *.Rhistory
 temp/
 README.html
+Q_and_A.html
 scrap.R
