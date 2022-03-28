@@ -32,6 +32,10 @@ You might run into some warnings (or worse) if you have older versions of other 
 
 A PDF of the slides from the main presentation is saved as `iSSA_ESAwebinar.pdf`. The FAQ slides are at the end of the main slides.
 
+### Q & A
+
+A follow-up document with more questions and answers is available as `Q_and_A.md`. It should be rendered properly here on GitHub.
+
 ### Scripts
 
 This repository contains 4 R scripts. The main R script, `amt_demo.R`, is what we work through during the webinar. In addition, there are supplementary scripts contained in the directory `extra/`:

@@ -27,7 +27,7 @@ If all you want is ‘population-level’ inference, include the same number of 
 
 Mixed-effects approach: tricky in conditional logistic regression, use a Poisson regression instead (see [Muff et al. 2020](https://doi.org/10.1111/1365-2656.13087)). 
 
-"Two-step"" approach: first conduct independent iSSA for each individual, then summarize across  individual coefficient estimates using weighted bootstrapping [e.g., using AIC weights], or linear models with inverse-variance weights.
+"Two-step" approach: first conduct independent iSSA for each individual, then summarize across  individual coefficient estimates using weighted bootstrapping [e.g., using AIC weights], or linear models with inverse-variance weights.
 
 ## Do you think that iSSF can be used in the case of geese? They have very small step lengths when they walk and when they change habitat, they fly.
 
@@ -94,7 +94,7 @@ As far as we know, weights should not be used in iSSA, only in exponential HSA.
 
 ## Do you foresee any issues in amt with the emerging "terra" package for raster data?
 
-It's hard to say, but `terra` is designed to be very similar to `raster`, so hopefully not. At some point there will likely be a full switch from `raster` to `terra` in `amt`, but I don't think Johannes Signer (`amt`'s author) has a timeline for that yet. You can stay up-to-date with the latest updates on [GitHub](https://github.com/jmsigner/amt).
+It's hard to say, but `terra` is designed to be very similar to `raster`, so hopefully not. At some point there will likely be a full switch from `raster` to `terra` in `amt`, but I don't think Johannes Signer (`amt`'s author/creator) has a timeline for that yet. You can stay up-to-date with the latest updates on [GitHub](https://github.com/jmsigner/amt).
 
 ## Why is it necessary to include both log step length and step length in the model for the purpose of adjusting it ? and Why are these models biased?
 
@@ -102,7 +102,7 @@ The underlying mechanistic movement model is a Biased Correlated Random Walk, be
 
 ## do people usually/ever check some kind of predictive performance holding out x-number of steps (e.g., at the end of the individual's trajectory) fitting the model to the not-held-out data and predicting the holdout step trajectory to see how closely the predicted end-steps match the actual end-steps
 
-Not often, mostly because this is fairly technically difficult, and theoretically questionable, to do using `survival::predict.coxph()`, but also because, while parameter estimate accuracy should increase with the number of available steps per cluster, correctly pointing out the used step is less likely the more available step there are (regardless of how close the model is to the truth). It is possible to calculate a likelihood-based pseudo R^2^ or concordance criteria (the probability that a used step is ranked higher than an available step; within-cluster ROC AUC) for out-of-sample data, but this is again rather technically difficult. We recommend Used-Habitat Calibration Plots [Fieberg et al. 2018](https://doi.org/10.1111/ecog.03123), or simulation-based validation, both soon to be implemented in amt.     
+Not often, mostly because this is fairly technically difficult, and theoretically questionable, to do using `survival::predict.coxph()`, but also because, while parameter estimate accuracy should increase with the number of available steps per cluster, correctly pointing out the used step is less likely the more available step there are (regardless of how close the model is to the truth). It is possible to calculate a likelihood-based pseudo R^2^ or concordance criteria (the probability that a used step is ranked higher than an available step; within-cluster ROC AUC) for out-of-sample data, but this is again rather technically difficult. We recommend Used-Habitat Calibration Plots ([Fieberg et al. 2018](https://doi.org/10.1111/ecog.03123)), or simulation-based validation, both soon to be implemented in amt.     
 
 ## Is it possible with amt to simulate tracks from iSSA models based on empirical data? and or based on specific distribution parameters chosen by the user?
 
