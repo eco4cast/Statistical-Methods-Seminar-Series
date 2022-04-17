@@ -1,0 +1,259 @@
+---
+title: "CJS in NIMBLE"
+subtitle: "NIMBLE 2022 virtual EFI workshop"
+author: "NIMBLE Development Team"
+date: "April 2022"
+
+output:
+revealjs::revealjs_presentation:
+transition: default
+self_contained: false
+center: true
+mathjax: NULL
+
+---
+<style>
+slides > slide {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE)
+library(nimble)
+library(coda)
+```
+
+# Bonus example: CJS capture-recapture model with "classic" dipper data.
+
+Dipper example:
+
+* 294 Dippers monitored 1981-1987.
+* One of the most classic capture-recapture teaching datasets ever.
+* Thanks to Daniel Turek and Olivier Gimenez for Dipper examples from previous workshops.
+
+Load the data
+=====
+```{r load_dipper} 
+dipper_example_dir <- file.path("..", "..", "bonus_examples", "examples","dipper")
+dipper <- read.csv(file.path(dipper_example_dir,"dipper.csv"))
+y <- as.matrix(dipper[ , 1:7])
+y <- y + 1 # Code as 1 = not captured, 2 = captured.
+first <- apply(y, 1, function(x) min(which(x != 1))) # first capture time
+y <- y[ first != 7, ] # remove records with first capture on last occasion
+head(y)
+```
+
+Conventional Hidden Markov model code, slightly updated.
+=====
+
+* data, y: 1 = not-detected, 2 = detected.
+* latent states, z: 1 = alive, 2 = dead. (Following convention that "dead" is the last state.)
+* Modified from Gimenez et al. capture-recapture workshop
+
+```{r dipper_code_dcat}
+dipper_code_dcat <- nimbleCode({
+  phi ~ dunif(0, 1) # prior survival
+  p ~ dunif(0, 1) # prior detection
+  # likelihood
+  gamma[1,1:2] <- c(phi, 1-phi)      # Pr(alive t -> alive t+1), Pr(alive t -> dead t+1)
+  gamma[2,1:2] <- c(0, 1)            # Pr(dead t -> alive t+1), Pr(dead t -> dead t+1)
+  delta[1:2] <- c(1, 0)              # Pr(alive t = 1) = 1, Pr(dead t = 1) = 0
+  omega[1,1:2] <- c(1 - p, p)        # Pr(alive t -> non-detected t), Pr(alive t -> detected t)
+  omega[2,1:2] <- c(1, 0)            # Pr(dead t -> non-detected t), Pr(dead t -> detected t)
+  for (i in 1:N){
+    z[i,first[i]] ~ dcat(delta[1:2]) # Illustrates initial state probabilities
+    for (j in (first[i]+1):T){
+      z[i,j] ~ dcat(gamma[z[i,j-1], 1:2])
+      y[i,j] ~ dcat(omega[z[i,j], 1:2])
+    }
+  }
+})
+```
+
+
+# Setup data, constants, and inits
+
+```{r setupInputs}
+zinits <- matrix(2, nrow = nrow(y), ncol = ncol(y)) # create inits for unknown states
+zdata <- matrix(NA, nrow = nrow(y), ncol = ncol(y)) # create data for known states
+for(i in 1:nrow(zinits)) {
+  known_alive <- range(which(y[i,] == 2))
+  zinits[i, known_alive[1] : known_alive[2] ] <- NA # inits -> for known elements
+  zdata[i, known_alive[1] : known_alive[2] ] <- 1   # data -> known values
+}
+dipper_constants <- list(N = nrow(y), 
+                         T = ncol(y), 
+                         first = first)
+dipper_data <- list(y = y,
+                    z = zdata)
+dipper_inits <- function() list(phi = runif(1,0,1),
+                                p = runif(1,0,1),
+                                z = zinits)
+head(dipper_data$z)     # data and inits have comlpementary
+head(dipper_inits()$z)  # NAs 
+```
+
+  
+# Create a model
+
+```{r nimbleModel, eval = TRUE, echo = TRUE}
+dipper_model <- nimbleModel(code = dipper_code_dcat,
+                            constants = dipper_constants,
+                            data = dipper_data,     # data can be set later.
+                            inits = dipper_inits()  # inits can be set later.
+                            )                       # dimensions is also a useful argument.
+```
+
+# Create an MCMC
+
+```{r configureMCMC, eval=TRUE}
+dipper_MCMCconf <- configureMCMC(dipper_model, monitors = c("phi", "p")) # can be skipped if you don't plan to customize
+dipper_MCMC <- buildMCMC(dipper_MCMCconf)
+```
+
+# Compile the model and MCMC
+
+## 3. Compile the model and MCMC
+
+```{r compileNimble, eval = TRUE, echo = TRUE, message = TRUE}
+C_dipper_model <- compileNimble(dipper_model) # These two lines can be done in one line.
+C_dipper_MCMC <- compileNimble(dipper_MCMC, project = dipper_model)
+```
+
+## 4. Run the MCMC
+
+```{r runMCMC, eval = TRUE, echo = TRUE, message = TRUE}
+samples <- runMCMC(C_dipper_MCMC, niter = 10000, samplesAsCodaMCMC = TRUE)
+# Alternative:
+# C_dipper_MCMC$run(1000)
+# samples <- as.matrix(C_dipper_MCMC$mvSamples)
+summary(samples)
+plot(samples)
+```
+
+# How can I use the model in R?
+
+```{r nimbleModel2, eval = TRUE, echo = FALSE}
+# Rebuild the model here for safe knitr behavior
+dipper_model <- nimbleModel(code = dipper_code_dcat,
+                            constants = dipper_constants,
+                            data = dipper_data,     # data can be set later.
+                            inits = dipper_inits()  # inits can be set later.
+                            )                       # dimensions is also a useful argument.
+C_dipper_model <- compileNimble(dipper_model) # These two lines can be done in one line.
+```
+
+```{r model_demo, eval=TRUE}
+class(dipper_model)[1]  # This is a reference class (S5) object
+dipper_model$gamma           # Look at a model variable,
+dipper_model$y[1:2, ]        # or part of one.
+dipper_model$isData('gamma') # Query what is data
+dipper_model$getNodeNames()[1:10]  # Query what are the nodes (vertices) in the graph,
+dipper_model$getDependencies("z[1, 3]") # and what depends on what..
+dipper_model$calculate()     # Calculate the entire model. Return sum of log probabilities.
+dipper_model$calculate('z[1, 3]') # Calculate one or more nodes in the model.
+dipper_model$calculate(dipper_model$getDependencies('z[1, 3]')) # Calculate based on model structure.
+dipper_model$simulate("y", includeData = TRUE) # Simulate new data
+head(dipper_model$y)
+dipper_model$calculate("y")   # Calculate new sum of log probabilities
+C_dipper_model$y <- dipper_model$y # The compiled model can be used in the same way
+C_dipper_model$calculate()
+```
+
+# NIMBLE might insert nodes into your model!
+
+These are called *lifted nodes*.
+
+### Example 1: reparameterization
+
+You give NIMBLE this:
+
+```{r, eval=FALSE}
+nimbleCode({
+  tau <- 1E-0.6
+  mu ~ dnorm(0, tau)
+})
+```
+
+* NIMBLE defaults to parameterizations from **WinBUGS/OpenBUGS/JAGS, not R**.  
+* Default SD/Var/precision for `dnorm` is **precision** = 1/variance.
+* NIMBLE converts this to a *canonical* parameterization for computations by treating it like this:
+
+```{r, eval=FALSE}
+nimbleCode({  
+  tau <- 1E-0.6
+  some_long_name_created_by_nimble <- 1/sqrt(tau) # a lifted node
+  mu ~ dnorm(0, sd = some_long_name_created_by_nimble)
+})
+```
+
+Example 2: Lifted expressions
+
+You give NIMBLE this:
+
+```{r, eval=FALSE}
+nimbleCode({
+  for(i in 1:n) y[i] ~ dnorm(a + b*x[i], sd = sigma)
+})
+```
+
+It treats it like this:
+```{r, eval=FALSE}
+nimbleCode({
+  for(i in 1:n) {
+    some_long_name_generated_by_nimble[i] <- a + b*x[i] # lifted nodes
+    y ~ dnorm(some_long_name_generated_by_nimble[i], sd = sigma)
+  })
+```
+
+# How can I use the MCMC configuration in R?
+
+* Change the set of samples that compose an MCMC algorithm.
+* See `help(samplers)` for samplers built in to `nimble`.
+* Default sampler assignments:
+
+    * Conjugate (Gibbs) sampler when possible.
+    * Special samplers for Bernoulli, categorical, Dirichlet, multinomial, possibly others.
+    * Slice samplers for discrete distributions such as Poisson.
+    * Adaptive random-walk Metropolis-Hastings samplers for other continuous distributions.
+    
+* MCMC efficiency = Effective sample size (mixing) / computation time
+
+    * Both speed and mixing matter.
+    * There is often a tradeoff between these.
+
+* Some ways to customize samplers
+
+    * Block (jointly) sample correlated dimensions.
+    * Block (joint) samplers include adaptive random-walk Metropolis-Hastings, automated factor slice sampler, and elliptical slice sampler (special case for MVN).
+    * Include multiple samplers that update slowly mixing nodes
+    * Sample nodes such as standard deviations on a log scale (control parameter of adaptive random-walk Metropolis-Hastings ("RW") sampler).
+    
+* Write your own sampler:
+
+    * You don't need to invent new MCMC theory in order to write useful samplers.
+    * E.g., sample in way that respects model constraints or otherwise takes advantage of model structure.
+    * A good opportunity for new collaborations and new R packages.
+
+```{r, eval=TRUE}
+# These steps would be done before buildMCMC
+dipper_MCMCconf$printSamplers("phi")
+dipper_MCMCconf$removeSamplers("phi")
+dipper_MCMCconf$addSampler("phi", type = "slice")
+dipper_MCMCconf$printSamplers("phi")
+```
+
+# How can I use uncompiled vs. compiled models and algorithms?
+
+* An important and perhaps unfamiliar principle:
+
+    * (Almost) everything can be run **uncompiled** (in R) or **compiled** (in C++).
+
+* Uncompiled use of models and algorithms in R allows debugging.
+
+    * Behavior is not always identical but is close.
+    * Example: Error trapping will behave differently.  Errors in C++ might not occur in R.
