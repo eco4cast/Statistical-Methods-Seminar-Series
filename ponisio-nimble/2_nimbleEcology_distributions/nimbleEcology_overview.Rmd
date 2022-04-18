@@ -1,0 +1,249 @@
+---
+title: "Introduction to nimbleEcology"
+subtitle: "NIMBLE 2022 virtual EFI workshop"
+author: "NIMBLE Development Team"
+date: "April 2022"
+
+output:
+revealjs::revealjs_presentation:
+transition: default
+self_contained: false
+center: true
+mathjax: NULL
+
+---
+<style>
+slides > slide {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE)
+library(nimble)
+library(coda)
+library(AHMbook)
+has_nimbleEcology <- require(nimbleEcology)
+# has_compareMCMCs <- require(compareMCMCs)
+if(!has_nimbleEcology)
+  message("This module will use nimbleEcology, which you don't have installed.")
+doDHMMexample <- TRUE
+```
+
+# nimbleEcology overview
+
+The `nimbleEcology` package (Goldstein et al.) provides marginalized distributions that turn hierarchical structures with latent states into one line distributions similar to familiar distributions like dpois() or dbinom():
+
+- Cormack-Jolly-Seber (CJS)
+- Occupancy
+- Dynamic occupancy
+- N-mixture (with fast computation)
+- Hidden Markov Models (e.g. multi-state and multi-event capture-recapture)
+
+# Refresher on HMMs and latent states 
+
+- Model fitting, whether working with Bayesian or maximum likelihood tools, always involves calculating the likelihood of a model.
+- In MLE, we often calculate the likelihood of a set of parameters given our data and numerically optimize those parameters to estimate the maximum of the likelihood function (MLE packages for ecological models like unmarked)
+- In Bayesian statistics, we don’t directly optimize the likelihood, but we do calculate it for a set of parameters when deciding whether to accept a newly sampled value during MCMC sampling.
+
+- In Hidden Markov Models (i.e., have latent states), calculating the likelihood becomes more complicated. 
+- We want to know the likelihood of our parameters, given the data and latent states 
+- In the dynamic occupany example we took a brute force approach and put samplers on the latent states. MCMC then algorithms sample from the posterior distribution of parameters and latent (unknown)  states given the observed data, This can be *very* computationally costly. 
+
+- Limits research efficiency
+- Limits research quality: 
+  - constrains the range of models that can be compared 
+  - limits potential for using simulations to check estimation performance, cross-validation, or other layers of computational analysis 
+
+--- 
+
+# Why are marginalized distributions helpful?
+
+- To sample the likelihood without sampling specific latent state values, you have to calculate and integrate over all possible values of each latent state
+- This means writing a likelihood function that considers all possible latent states and computes the likelihood as a weighted sum across those ("marginalizing", or "integrating out")
+- Summing over the latent states in a hidden Markov model for multi-state or multi-event capture–recapture can yield orders-of-magnitude improvement in computational efficiency [(Ponisio et al. 2020)](https://onlinelibrary.wiley.com/doi/full/10.1002/ece3.6053)[(Turek et al. 2016)](https://link.springer.com/article/10.1007/s10651-016-0353-z).
+
+--- 
+
+# Disadvantages of using marginalized distributions?
+
+- Marginalizing vs. sampling:  The winner depends on computational costs and mixing.
+    * Ex. simple dynamic occupancy and N-mixture can perform better with sampling (Ponisio et al. 2020).
+    
+- 'derivied quantities' such as calculating a posterior on the total number of occupied sites is not possible because we aren’t sampling the latent states
+
+---
+
+# Some resources
+
+* The [`nimbleEcology` (Goldstein et al. 2020)](https://CRAN.R-project.org/package=nimbleEcology) package.
+
+* We will focus on the code.  For `nimbleEcology`, the math related to the code is summarized in the [package vignette](https://cran.r-project.org/web/packages/nimbleEcology/vignettes/Introduction_to_nimbleEcology.html).
+
+* Examples of occupancy, dynamic occupancy, and N-mixture models are given in [*One size does not fit all: Customizing MCMC methods for hierarchical models using NIMBLE* (Ponisio et al. 2020)](https://onlinelibrary.wiley.com/doi/full/10.1002/ece3.6053).
+
+* Examples of CJS and HMM are given in [*Efficient Markov chain Monte Carlo sampling for hierarchical hidden Markov models* (Turek et al. 2016)](https://link.springer.com/article/10.1007/s10651-016-0353-z).
+
+* Ben Goldstein's blog for more examples using [nimbleEcology](https://dochvam.github.io/blog.html)
+
+--- 
+
+# Each distribution comes in multiple versions.
+
+Recall that `nimbleFunction`s require static typing.
+
+Unfortunately:
+
+- scalars are not automatically converted to length-one vectors.
+- vectors are not automatically converted to single-row or single-column matrices.
+
+This means we have implemented variants for each distribution.
+
+# Dynamic occupancy
+
+- dDynOcc_s$**$ functions take time-independent (scalar) persistence probabilities, while   
+- dDynOcc_v$**$functions take time-dependent (vector) persistence probabilities
+- dDynOcc_$*$s$*$ functions take time-independent (scalar) colonization probabilities, while 
+- dDynOcc_$*$v$*$functions take time-dependent (vector) colonization probabilities
+- dDynOcc_$**$s functions take time-independent (scalar) observation probabilities, while 
+- dDynOcc_$**$v functions take observation probabilities dependent on time step (vector) and 
+- dDynOcc_$**$m functions take observation probabilities dependent on both time step and observation event (matrix)
+
+---
+
+# Back to our dynamic (single species multi season) occupancy model
+
+```{r sim_dOcc_data} 
+set.seed(444)
+
+# simulate a time-constant model with 3 different covariates affecting the 3 parameters (phi, gamma, p)
+
+occ.data <- AHMbook::simDynocc(
+  nsites = 250,
+  nyears = 10,
+  nsurveys = 3,
+  mean.psi1 = 0.6, # average occupancy probability in first year
+  beta.Xpsi1 = 0, # coefficient of environ covariate in p(initial occupancy).
+  range.phi = c(0.7, 0.7), # bounds of uniform distribution from which annual p(persistence) is randomly drawn.
+  beta.Xphi = 1, # coefficients of environ covariate in p(persistence).
+  range.gamma = c(0.3, 0.3), # bounds of uniform distribution from which annual p(colonization) is randomly drawn.
+  beta.Xgamma = 1, # coefficient of environmental covariate in p(colonization).
+  range.p = c(0.5, 0.5), # bounds of uniform distribution from which annual p(detection) is randomly drawn.
+  beta.Xp = 1, # coefficient of environmental covariate in p(detection).
+  show.plot = FALSE)
+
+## constants
+dOcc_constants <- list(nsite = occ.data$nsites,
+                  nsurvey = occ.data$nsurveys,
+                  nyear = occ.data$nyears,
+                  start = rep(1, occ.data$nyears), ## new 
+                  end = rep(occ.data$nsurveys, occ.data$nyears)) ## new
+
+## data (NO ZS!)
+dOcc_data <- list(y = aperm(occ.data$y, c(1, 3, 2)), ## sites, years, survey
+                    Xphi = occ.data$Xphi,
+                    Xgamma = occ.data$Xgamma,
+                    Xp = aperm(occ.data$Xp, c(1, 3, 2)))
+
+## initial conditions (NO ZS!)
+dOcc_inits <- list(psi1 = runif(1, 0, 1),
+       beta = runif(6, -2, 2))  
+
+
+```
+
+---
+
+# The dynamic occupancy model with marginalization
+
+```{r dOcc_code}
+dOcc_code <- nimbleCode({
+  for (site in 1:nsite) {
+    for (year in 1:nyear) {
+      ## persistence
+      logit(phi[site, year]) <- beta[1] + beta[2] * Xphi[site, year]
+      ## colonization
+      logit(gamma[site, year]) <- beta[3] + beta[4] * Xgamma[site, year]
+      ## detection
+      for (survey in 1:nsurvey) {
+        logit(p[site, year, survey]) <- beta[5] + beta[6] * Xp[site, year, survey]
+      }
+    }
+    y[site, 1:nyear, 1:nsurvey] ~ dDynOcc_vvm(psi1, phi[site, 1:nyear], gamma[site, 1:nyear], p[site, 1:nyear, 1:nsurvey],
+                                 start[1:nyear], end[1:nyear])
+  }
+  # priors
+  psi1 ~ dunif(0, 1)
+  for (i in 1:6) {
+    beta[i] ~ dnorm(0, 1.0e-2)
+  }
+})
+
+         
+```
+
+---
+
+# 1. Create a model
+
+```{r nimbleModel, eval = TRUE, echo = TRUE}
+dOcc_model <- nimbleModel(code = dOcc_code,
+                          constants = dOcc_constants,
+                          data = dOcc_data,     # data can be set later.
+                          inits = dOcc_inits  # inits can be set later.
+                          )                      
+```
+
+
+---
+
+# 2. Create an MCMC
+
+```{r configureMCMC, eval=TRUE}
+dOcc_MCMCconf <- configureMCMC(dOcc_model)
+dOcc_MCMC <- buildMCMC(dOcc_MCMCconf)
+```
+
+## 3. Compile the model and MCMC
+
+```{r compileNimble, eval = TRUE, echo = TRUE, message = TRUE}
+C_dOcc_model <- compileNimble(dOcc_model) # These two lines can be done in one line.
+C_dOcc_MCMC <- compileNimble(dOcc_MCMC, project = dOcc_model)
+```
+
+## 4. Run the MCMC
+
+```{r runMCMC, eval = TRUE, echo = TRUE, message = TRUE}
+samples <- runMCMC(C_dOcc_MCMC, niter = 10000,
+                   samplesAsCodaMCMC = TRUE,
+                   nburnin = 5000,
+                   nchains=3)
+summary(samples)
+plot(samples)
+```
+
+# All in one step option
+
+```{r nimbleModel2, eval = FALSE, echo = FALSE}
+
+nimble_fit <- nimbleMCMC(code = dOcc_code,
+                         constants = dOcc_constants,
+                         data = dOcc_data,    
+                         inits = dOcc_inits,
+                         niter = 10000,
+                         nburnin = 4000,
+                         nchains = 3,
+                         summary = TRUE,
+                         samples = TRUE)
+```
+--- 
+
+# General dream 
+
+- can use a different function (compareMCMCs, installing instructions in this workshop's readme) to choose the best options for your model (marginalization or not, also swap out samplers see bonus module in this workshop). Can also often tell based on run times without compareMCMCs. 
+- can do more than just getting the model to run once!
+- do model selection (indicator variables and reversible jump MCMC? WAIC is also implemented in nimble)
+- do model assessment (CPPP WIP come in NIMBLE)
