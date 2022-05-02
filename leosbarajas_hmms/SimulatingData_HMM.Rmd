@@ -1,0 +1,105 @@
+---
+title: "Simulating Data from a N-State HMM"
+output:
+ html_notebook
+---
+
+Let's simulate data from an HMM. As mentioned before, we need to specify a few things: 
+
+- the number of states $N$
+- the state-dependent distributions, $f(X_t | C_t = n)$
+- the transition probabiility matrix
+- the initial state distribution
+
+We'll make use of the library `tidyverse`, which includes `ggplot2`, to plot our data. 
+
+```{r, message=FALSE}
+library(tidyverse)
+```
+
+
+```{r model_setup}
+## Specify the number of states ---------------
+N <- 2
+
+## Specify the initial distribution -----------
+init <- rep(1/N, N)
+
+## Specify the transition probability matrix ----
+tpm <- matrix(c(0.9, 0.1, 
+                0.01, 0.99), 
+              byrow=T, nrow=2)
+
+## Specify the state-dependent distribution + values of parameters
+## Normal(mean, standard deviation)
+mu <- c(5, 10)
+sd <- c(2, 1)
+
+#pois_sdd <- c(4, 20)
+```
+
+Now let's simulate data from our 2-state HMM with normal state-dependent distributions. 
+
+```{r simulate_data}
+# Length of the time series
+len <- 500
+
+states <- numeric(len)
+obs <- numeric(len)
+
+# Simulating states
+states[1] <- sample(size=1, x = 1:N, prob = init)
+
+for(j in 2:len){
+  states[j] <- sample(size=1, x = 1:N, prob = tpm[states[j-1],])
+}
+
+# Simulating observations
+obs <- rnorm(len, mean=mu[states], sd = sd[states])
+```
+
+Visualize the simulated observations: 
+
+```{r}
+ggplot(data=tibble(x=1:len, y=obs, group=factor(states)), 
+       aes(x, y, color=group)) + geom_point() + 
+  xlab("Time") + ylab("Observations") + 
+  theme_minimal() + scale_color_discrete(name="State")
+
+```
+Visualize the states: 
+
+```{r}
+ggplot(data=tibble(x=1:len, y=obs, group=factor(states)), 
+       aes(x, y)) + geom_point(aes(color=group)) + 
+  xlab("Time") + ylab("Observations") + 
+  theme_minimal() + scale_color_discrete(name="States") + 
+  geom_path(aes(x=1:len, y=obs), alpha=0.3)
+```
+```{r}
+
+## plotting the state sequence
+
+ggplot(data=tibble(x=1:len, states = states), aes(x, states)) + 
+  geom_path() + theme_light() + xlab("Time") + ylab("States") 
+
+```
+
+
+State dwell-time distributions: 
+
+```{r}
+state1dur <- dgeom(x = 0:100, prob = 0.2)
+state2dur <- dgeom(x=  0:100, prob = 0.3)
+
+stateDur <- tibble(x=rep(1:101, 2),
+                   dur = c(state1dur, state2dur), 
+                   State=factor(rep(1:2, each=101)))
+
+ggplot(stateDur, aes(x, dur, color=State)) + 
+  geom_point(size=3) + theme_minimal() + 
+  xlim(0, 25) + geom_path(size=2, alpha=0.4) + 
+  ggtitle("State Dwell-Time Distributions") + 
+  ylab("Probability") + xlab("Duration")
+```
+

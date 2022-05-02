@@ -1,0 +1,53 @@
+---
+title: "Animal Movement: Porpoise Dive Data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(cmdstanr)
+library(bayesplot)
+```
+
+## Loading in the Data
+
+```{r}
+# Data from Leos-Barajas, V, Gangloff, E., Adam, T., Langrock, R., Van Beest, F., Nabe-Nielsen, Morales, J.M. (2017). 
+# Multi-scale modeling of animal movement and general behavior data using hidden Markov models with hierarchical structures
+# Journal of Agricultural, Biological and Environmental Statistics.
+load("porpoise.rdata")
+
+dives <- bind_rows(data)
+dives$date_time <- ymd_hms(dives$date_time)
+
+ggplot(dives[1:1000,], aes(date_time, dive_duration)) + geom_point()
+
+ggplot(dives[1:1000,], aes(date_time, dive_duration)) + geom_line()
+
+head(dives)
+```
+
+## Setting up our model
+
+```{r}
+porpoiseHMM <- cmdstan_model("AnimalMovementEFI.stan")
+phmm.data <- list(y = dives$dive_duration, 
+                   N = 3, 
+                   T = dim(dives)[1], 
+                  lprior_scale = rep(1, 3), 
+                  lprior_shape = rep(1, 3))
+
+
+pHMM.fit <- porpoiseHMM$sample(
+  data = phmm.data, chains = 3, parallel_chains = 3)
+
+print(pHMM.fit$summary(c("lambda","Gamma", "lp__")))
+mcmc_hist(pHMM.fit$draws( c("lp__", "lambda", "Gamma")))
+```
+
+
