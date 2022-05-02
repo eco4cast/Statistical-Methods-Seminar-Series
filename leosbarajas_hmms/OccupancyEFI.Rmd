@@ -1,0 +1,95 @@
+---
+title: "Dynamic Occupancy Modeling"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r data}
+# Data from Kéry, M., Guillera‐Arroita, G., & Lahoz‐Monfort, J. J. (2013). 
+# Analysing and mapping species range dynamics using occupancy models. 
+# Journal of Biogeography, 40(8), 1463-1474.
+data(crossbill, package = "unmarked")
+
+# Get into format for HMM
+nsites <- nrow(crossbill)
+dat <- data.frame(ID = rep(1:nsites, each = 9),
+                  year = rep(1:9, nsites), 
+                  elev = rep(crossbill$ele, each = 9), 
+                  forest = rep(crossbill$forest, each = 9), 
+                  surveys = rep(crossbill$surveys, each = 9))
+y <- apply(as.matrix(crossbill[,5:31]), 1, FUN = function(x) {
+    tapply(as.numeric(x), rep(1:9, each = 3), FUN = function(r) {sum(r, na.rm = TRUE)})
+})
+y <- as.numeric(y)
+dat$y2 <- ifelse(dat$surveys == 2, y, NA)
+dat$y3 <- ifelse(dat$surveys == 3, y, NA)
+dat$forest <- as.numeric(dat$forest)
+dat$elev <- as.numeric(dat$elev)
+
+
+head(dat)
+```
+
+The variables are:
+
+- `ID`: identifier for site
+
+- `year`: year of survey
+
+- `surveys`: number of surveys that year (either 2 or 3)
+
+- `y2`: number of observations in years with 2 surveys (0, 1, or 2)
+
+- `y3`: number of observations in years with 3 surveys (0, 1, 2, or 3)
+
+- `elev`: elevation in meters
+
+- `forest`: forest cover 
+
+The variables `y2` and `y3` can be analysed in a joint HMM, although they have to be included as two different data streams because they have different distributions. They are binomial with $n = 2$ or 3, and with parameter $p$ representing the detection probability. The 2-state underlying process represents occupancy (i.e., state 1 = occupied, state 2 = not occupied), and it is partially observed because we know that a site is occupied if $y > 0$. We also know that the detection probability is zero in state 2.
+
+To simplify the process, we'll convert any value > 0 to 1, simply to denote detection. 
+
+```{r}
+dat$detect <- rep(NA, dim(dat)[1])
+sr3 <- which(dat$surveys == 3)
+sr2 <- which(dat$surveys == 2)
+
+for(i in 1:dim(dat)[1]){
+  if(i %in% sr2){
+    if(dat$y2[i] == 0){
+      dat$detect[i] <- 0}
+    else{
+      dat$detect[i] <- 1  
+      }
+  } else{
+      if(dat$y3[i] == 0){
+        dat$detect[i] <- 0
+      }else{
+        dat$detect[i] <- 1
+      }
+    }
+  }
+
+head(dat)
+```
+
+```{r}
+
+library(rstan)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+occ.data <- list(Tlen = dim(dat)[1], 
+                 y = dat$detect, 
+                 N = 2,
+                 index = dat$ID)
+
+occ.fit <- stan(file = "OccupancyEFI.stan", data = occ.data)
+
+```
+
