@@ -32,7 +32,11 @@ remotes::install_github("maRce10/PhenotypeSpace")
 
 ### Scripts
   
+The R script can be downloaded [from here](https://raw.githubusercontent.com/eco4cast/Statistical-Methods-Seminar-Series/main/araya-salas_bioacoustics/example_code_bioacoustics_Araya-Salas_2022.Rmd)  
+  
 ### Data
+
+All data used in the example R code is found in the "data" subfolder. Download that folder into the same directory in which the Rmd script is found to run the code. 
 ---
 
 
