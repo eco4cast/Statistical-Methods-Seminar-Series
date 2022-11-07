@@ -1,0 +1,4 @@
+Selection	View	Channel	Begin Time (s)	End Time (s)	Low Freq (Hz)	High Freq (Hz)	Begin File	channel	Begin Path	File Offset (s)
+1	Spectrogram 1	1	1.16935492686256	1.34238837651785	2220.10539116336	8604.37778678557	Phae.long1.wav	1	/tmp/RtmpWpOeaR/Phae.long1.wav	1.16935492686256
+2	Spectrogram 1	1	2.15840849019842	2.32145650374094	2169.43656262667	8807.05310093231	Phae.long1.wav	1	/tmp/RtmpWpOeaR/Phae.long1.wav	2.15840849019842
+3	Spectrogram 1	1	0.343336570405113	0.518255314152904	2218.29412537784	8756.60402155342	Phae.long1.wav	1	/tmp/RtmpWpOeaR/Phae.long1.wav	0.343336570405113
