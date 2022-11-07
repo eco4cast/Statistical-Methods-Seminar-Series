@@ -1,0 +1,255 @@
+
+---
+title: <center><font size="6"><b>R package overview</b></font></center>
+subtitle: <center><font size="4"><b>Statistical Methods Seminar Series</b></font></center>
+author: <center><font size="4"><a href="http://marceloarayasalas.weebly.com/">Marcelo Araya-Salas, PhD</a></font></center>
+date: <center>`r format(Sys.Date(), "%d-%m-%Y")`</center>
+output:
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_depth: 3
+    df_print: kable
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+fontsize: 12pt 
+editor_options: 
+  chunk_output_type: console
+---
+
+Installing packages:
+
+```{r setup, include=FALSE, eval = FALSE}
+
+remotes::install_github("maRce10/warbleR")
+remotes::install_github("maRce10/ohun")
+remotes::install_github("maRce10/PhenotypeSpace")
+remotes::install_github("maRce10/baRulho")
+
+```
+
+Set working directory path:
+```{r}
+
+wd <- "./data"
+
+```
+
+
+# Rraven
+
+Importing Raven selection tables into R:
+```{r}
+
+library(warbleR)
+library(Rraven)
+
+#load example data
+data("selec.table")
+
+# check txt files in ./data
+list.files(path = wd, pattern = ".txt$")
+
+# raven format
+sels <- Rraven::imp_raven(path = wd)
+
+# warbleR format
+sels <- Rraven::imp_raven(path = wd, warbler.format = TRUE, all.data = FALSE)
+
+# reading specific files
+sels <- Rraven::imp_raven(path = wd, warbler.format = TRUE, all.data = FALSE, files = c("LBH 4 selection table example.txt", "LBH 2 selection table example.txt", "LBH 3 selection table example.txt"))
+
+# extracting features 
+## spectral parameters
+warbleR::spectro_analysis(sels, path = wd)
+
+# cross correlation
+warbleR::cross_correlation(sels, path = wd)
+
+# selection can also be exported to be open in Raven
+Rraven::exp_raven(X = sels, path = wd, sound.file.path = wd, file.name = "single.file")
+
+# and then re-exported into R
+sngl <- Rraven::imp_raven(path = wd, files = "single.file.txt", warbler.format = TRUE, all.data = TRUE)
+
+
+```
+
+
+# Automatic detection: ohun
+
+
+
+How to optimize detection
+```{r}
+
+data("lbh1", "lbh2", "lbh_reference")
+
+# feature reference
+ohun::feature_reference(lbh_reference)
+
+
+# print spectrogram 1st file
+ohun::label_spectro(wave = lbh1, reference = lbh_reference[lbh_reference$sound.files ==
+    "lbh1.wav", ], hop.size = 10, ovlp = 50, flim = c(1, 10))
+
+# 2nd file 
+ohun::label_spectro(wave = lbh2, reference = lbh_reference[lbh_reference$sound.files ==
+    "lbh2.wav", ], hop.size = 10, ovlp = 50, flim = c(1, 10))
+
+# optimize detection
+optim_detection <- ohun::optimize_energy_detector(reference = lbh_reference,
+    threshold = c(2, 5, 10), min.duration = c(100), path = wd, smooth = c(5, 10, 20), bp = c(1.5, 9.6))
+  
+```
+
+# once you have annotations: warbleR
+
+formating and exploring sound files:
+```{r}
+
+# settting global parameters
+warbleR::warbleR_options(path = wd)
+
+# checking sound files
+warbleR::check_sound_files()
+
+# check format
+warbleR::info_sound_files()
+
+# consolidate
+warbleR::consolidate()
+
+# get durations  
+warbleR::duration_sound_files()
+
+```
+
+quantify structure (feature extraction):
+```{r}
+
+# define global options
+warbleR::warbleR_options(path = "./data", bp = "frange")
+
+# measure spectral parameters
+warbleR::spectro_analysis(X = lbh_selec_table, bp = c(0, 11), wl = 100, threshold = 1, ovlp = 10)
+
+# measure mel frequency cepstral coefficients
+warbleR::mfcc_stats(lbh_selec_table, numcep = 3)
+
+# measure signal to noise ratio
+signal_2_noise(lbh_selec_table, mar = 0.4)
+
+# measure dynamic time warping
+warbleR::df_DTW(lbh_selec_table)
+
+# measure gap duration
+warbleR::gaps(lbh_selec_table)
+
+```
+
+Testing coordinated singing:
+```{r}
+#load  simulated singing data (see data documentation)
+data(sim_coor_sing)
+
+# testing if coordination happens less than expected by chance
+warbleR::test_coordination(sim_coor_sing)
+
+sim_coor_sing$sound.files <- sim_coor_sing$sing.event
+sim_coor_sing$selec <- 1:nrow(sim_coor_sing)
+
+ovlps <- warbleR::overlapping_sels(sim_coor_sing, pb = FALSE)
+
+```
+
+
+'Song' level features:
+```{r}
+
+pe_st <- read.csv("./data/P. eurynome selection table.csv")
+
+p.eurynome <- readWave("./data/Phaethornis-eurynome-15607.wav", from = 0.7, to = 4, units = "seconds")
+
+# check song
+seewave::spectro(p.eurynome, flim = c(1, 14), collevels = seq(-120, 0, 5), palette = viridis, scale = FALSE, grid = FALSE, ovlp = 90)
+
+# check elements
+seewave::spectro(p.eurynome, flim = c(1, 14),  tlim = c(0, 0.6), collevels = seq(-120, 0, 5), palette = viridis, scale = FALSE, grid = FALSE, ovlp = 90)
+
+# create selection table
+pe_est <- warbleR::selection_table(pe_st, extended = TRUE, 
+              confirm.extended = FALSE, by.song = "song")
+
+# extract song level features
+song_feat <- warbleR::song_param(pe_est, song_colm = "song")
+
+```
+
+other features:
+```{r}
+
+check_sels(lbh_selec_table)
+
+library(NatureSounds)
+library(viridis)
+data("lbh.est")
+
+spectrograms(lbh.est, path = wd, pal = viridis, collevels = seq(-100, 0 , 5), ovlp = 90, wl = 100)
+
+spectrograms(lbh.est, path = wd, pal = viridis, fast.spec = TRUE, wl = 100)
+
+
+catalog(X = lbh.est, flim = c(1, 10), nrow = 8, ncol = 7, ovlp = 70, height = 15, width = 23, same.time.scale = TRUE, mar = 0.005, wl = 200, gr = FALSE, spec.mar = 0.4, lab.mar = 0.8, rm.axes = TRUE, by.row = TRUE, box = TRUE, labels = "selec", fast.spec = FALSE, pal = viridis, path = wd, collevels = seq(-100, 0 , 5))
+
+```
+
+
+# quantify acoustic (latent) space: PhenotypeSpace
+
+```{r}
+
+library(PhenotypeSpace)
+data("example_space")
+
+# plot data
+xs <- tapply(example_space$Dimension_1, example_space$ID, mean)
+ys <- tapply(example_space$Dimension_2, example_space$ID, mean)
+plot(example_space[, c("Dimension_1", "Dimension_2")], col = example_space$color, pch = 20, cex = 1.8)
+text(xs, ys, labels = names(xs), cex = 2.5)
+
+
+# get minimum convex polygon overlap for each group (non-symmetric)
+mcp_overlaps <- space_similarity(
+X = example_space,
+dimensions =  c("Dimension_1", "Dimension_2"),
+group = "ID",
+type = "density.overlap")
+
+# convert to non-symmetric triangular matrix
+rectangular_to_triangular(mcp_overlaps, symmetric = FALSE)
+
+```
+
+Measure latent space on acoustic data:
+
+```{r}
+
+# measure acoustic parameters
+sp <- spectro_analysis(X = lbh.est, bp = c(0, 11), wl = 100, threshold = 1, ovlp = 70)
+
+# reduce dimensions with PCA
+pca <- princomp(sp[,-c(1:2)])$scores[, 1:2]
+
+# create data frame
+sp <- data.frame(lek.song.type = lbh.est$lek.song.type, pca)
+
+# measure distances between points
+ovlp <- space_similarity(X = sp, dimensions = c("Comp.1", "Comp.2"), group = "lek.song.type", type = "distance")
+
+# convert to non-symmetric triangular matrix
+rectangular_to_triangular(ovlp, symmetric = TRUE)
+
+```
+
