@@ -37,3 +37,6 @@ The R script can be downloaded [from here](https://raw.githubusercontent.com/eco
 
 All data used in the example R code is found in the "data" subfolder. Download that folder into the same directory in which the Rmd script is found to run the code. 
 
+### Webinar
+
+The webinar was recorded and is available on youtube [in this link](https://youtu.be/dYlkDCUTbAs).
