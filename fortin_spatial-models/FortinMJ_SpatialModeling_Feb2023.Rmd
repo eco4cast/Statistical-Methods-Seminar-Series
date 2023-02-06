@@ -1,0 +1,200 @@
+---
+title: "Spatial Models"
+author: "Fortin, M-J"
+date: '2023'
+output:
+  html_document:
+    df_print: paged
+---
+```{r setup}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Install librairies
+
+```{r}
+
+library(maptools)
+library(MASS)
+library(nlme)
+library(lme4)
+library(spdep)
+library(spgwr)
+library(vegan)
+#library(spatialreg)
+#library(ggplot2)
+#library(MuMIn)
+
+```
+
+## Read Birdbird - Forest data
+
+```{r}
+
+bird = read.csv("bird_forest.csv",header=TRUE)
+str(bird)
+
+plot(bird$xUTM,bird$yUTM,pch=20)
+
+#ggplot(bird, aes(xUTM, yUTM, color=Bird)) + 
+#  ggtitle("Overbird") + geom_point(show.legend=T)
+
+```
+
+### OSL - Linear Regression
+
+```{r}
+
+plot(bird$Forest,bird$Bird)
+Bird.lm=lm(Bird ~ Forest, data=bird)
+summary(Bird.lm)
+
+bird$ScaleBird=scale(bird$Bird,scale=TRUE)
+bird$ScaleForest=scale(bird$Forest,scale=TRUE)
+plot(bird$ScaleForest,bird$ScaleBird)
+
+ScaleBird.lm=lm(ScaleBird ~ ScaleForest, data=bird)
+summary(ScaleBird.lm)
+
+```
+
+### Residual analysis
+
+```{r}
+
+Fitted.Bird=fitted.values(Bird.lm)
+Resid.Bird=residuals(Bird.lm)
+plot(bird$Bird,Fitted.Bird)
+#plot(Fitted.Bird,Resid.Bird)
+
+```
+
+## Linear regression: Trend Surface (x-y coordinates)
+
+```{r}
+
+Bird.lm.xy=lm(Bird ~ Forest + xUTM + yUTM, data=bird)
+summary(Bird.lm.xy)
+
+```
+
+### Generalized Linear Mixed Model
+
+```{r}
+# Fit model including random effect
+bird$Zones=as.factor(bird$Zones)
+Bird.random = lme4::lmer(Bird ~ 1 + (1 | Zones), data=bird,REML=FALSE)
+summary(Bird.random)
+
+# Nakagawa & Schielzeth's: R2m=fixed effects, R2c=fixed and random effects
+#r.squaredGLMM(Bird.random)
+
+
+# Fit model including fixed and random effects
+Bird.GLMM = lme4::lmer(Bird ~ Forest + (1 | Zones), data=bird,REML=FALSE)
+summary(Bird.GLMM)
+
+# Nakagawa & Schielzeth's: R2m=fixed effects, R2c=fixed and random effects
+#r.squaredGLMM(Bird.GLMM)
+
+```
+
+### GLS
+
+```{r}
+
+Bird.GLSx = nlme::gls(Bird ~ Forest,
+   correlation = corAR1(form = ~ 1 | xUTM), data=bird)
+nlme:::summary.gls(Bird.GLSx)
+
+Bird.GLSy = nlme::gls(Bird ~ Forest,
+    correlation = corAR1(form = ~ 1 | yUTM), data=bird)
+summary(Bird.GLSy)
+  
+Bird.corLin <- nlme::gls(Bird ~ Forest, correlation =
+    corLin(form = ~ xUTM + yUTM), data = bird)
+summary(Bird.corLin)
+
+Bird.corSpher <- nlme::gls(Bird ~ Forest, correlation = 
+     corSpher(form = ~ xUTM + yUTM, nugget = TRUE), data = bird)
+summary(Bird.corSpher)
+
+```
+
+### Spatial Lag Regression
+
+```{r}
+
+xy=cbind(bird$xUTM,bird$yUTM)
+# Delaunay Tessellation
+xy.delo=spdep::tri2nb(xy)
+xy.W=spdep::nb2listw(xy.delo, glist=NULL, style="W", 
+              zero.policy=NULL)
+fdist = lapply(xy.delo, function(x) 1 - x/max(dist(xy)))
+## make a listw object
+xy.listw = spdep::nb2listw(xy.delo, glist = fdist)
+
+#Bird.lag = spdep::lagsarlm(Bird ~ Forest, 
+#                  data = bird, listw=xy.listw) 
+#summary(Bird.lag)
+
+```
+
+### Spatial Error Regression
+
+```{r}
+
+#Bird.err = spdep::errorsarlm(Bird ~ Forest, data = bird, listw = xy.listw)
+#summary(Bird.err)
+
+```
+
+### Comparing models
+
+```{r}
+
+#AIC(Bird.lm, Bird.lm.xy, Bird.random, Bird.GLMM, Bird.GLSx, Bird.GLSy, Bird.corLin, Bird.corSpher,Bird.lag,Bird.err)
+
+AIC(Bird.lm, Bird.lm.xy, Bird.random, Bird.GLMM, Bird.GLSx, Bird.GLSy, Bird.corLin, Bird.corSpher)
+
+```
+
+## Multiple Scales
+
+```{r}
+d.xy=dist(xy)
+pcnm.xy=pcnm(d.xy)
+#str(pcnm.xy)
+Bird.MEMs=lm(Bird ~ Forest + scores(pcnm.xy), data=bird)
+options(max.print=1000000)
+print(summary(Bird.MEMs))
+
+#Keep only 6 highly significant MEMs
+pcnm.key=cbind(pcnm.xy$vectors[,1],pcnm.xy$vectors[,19],pcnm.xy$vectors[,31],
+               pcnm.xy$vectors[,45],pcnm.xy$vectors[,94],pcnm.xy$vectors[,300])
+Bird.MEM5s=lm(Bird ~ Forest + pcnm.key, data=bird)
+summary(Bird.MEM5s)
+
+```
+
+## GWR
+
+```{r}
+#library(spgwr)
+BirdGWRbandwidth = gwr.sel(Bird ~ Forest, data=bird, coords=cbind(bird$xUTM,bird$yUTM),adapt=T)
+
+Bird.gwr = gwr(Bird ~ Forest, data=bird, coords=cbind(bird$xUTM,bird$yUTM),
+               adapt=BirdGWRbandwidth, hatmatrix=TRUE, se.fit=TRUE) 
+Bird.gwr
+
+Bird.results<-as.data.frame(Bird.gwr$SDF)
+head(Bird.results)
+names(Bird.results)
+bird$grw.est=Bird.results$gwr.est
+bird$grw.pred=Bird.results$pred
+bird$grw.R2=Bird.results$localR2
+str(bird)
+summary(bird$grw.R2)
+```
