@@ -18,12 +18,19 @@ knitr::opts_chunk$set(
 This document presents the analysis of GPS movement tracks from African elephants at Kruger National Park, kindly made available on the Movebank Data Repository by @slotow2019 and previously analysed by @thaker2019.
 
 ``` {r load-packages, results = 'hide', warning = FALSE}
+# Installing the archived package `foieGras` and its dependencies
+library(devtools)
+# Check latest versions here: https://cran.r-project.org/web/packages/trip/index.html and https://cran.r-project.org/web/packages/tmvtnorm/index.html
+install_version("trip", version = "1.8.7", repos = "http://cran.us.r-project.org")
+install_version("tmvtnorm", version = "1.5", repos = "http://cran.us.r-project.org")
+install.packages("https://cran.r-project.org/src/contrib/Archive/foieGras/foieGras_0.7-6.tar.gz", repos=NULL, type="source")
+library(foieGras)
+
 # Plotting package
 library(ggplot2)
 theme_set(theme_bw())
 # Movement modelling packages
 library(momentuHMM)
-library(foieGras)
 library(adehabitatLT)
 # GIS packages
 library(sf)
