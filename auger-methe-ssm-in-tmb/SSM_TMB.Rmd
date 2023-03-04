@@ -1,0 +1,1276 @@
+---
+title: "Using TMB to fit and assess state-space models"
+author: "Marie Auger-Méthé"
+date: "28/02/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This tutorial is heavily based on Appendix S1 (Supporting Information) from:
+
+- Auger-Méthé M, Newman K, Cole D, Empacher F, Gryba R, King AA, Leos-Barajas V, Mills Flemming J, Nielsen A, Petris G, Thomas L (2021) A guide to state–space modeling of ecological time series. Ecological Monographs 91(4):e01470. (Open access,  https://doi.org/10.1002/ecm.1470). 
+
+Please refer to the paper and its appendices for more in-depth information on state-space models and how to apply them to data using R.
+
+# To do before the seminar
+
+## Installing TMB and Xcode or R tools
+
+Because `TMB` use C++ code, the installation of the package requires additional steps. The package is available on CRAN https://cran.r-project.org/web/packages/TMB/index.html, however your computer needs to be set up so you can compile the C++ code. You can find installation information at: https://github.com/kaskr/adcomp/wiki/Download. Briefly, if you are Mac user, you will need to install the Xcode developer tools (freely available via the App store). With older versions of Mac OS, you may run into problems with the Fortran compiler. For solutions, see the link above and this link https://mac.r-project.org/tools/. If you are a Windows user, you will need to install Rtools: https://cran.r-project.org/bin/windows/Rtools/. You can find guidelines on how to install `TMB` on a Windows machine here: https://github.com/kaskr/adcomp/wiki/Windows-installation.
+
+## Donwloading data from dryad
+
+The second part of the tutorial will use polar bear movement data from Auger-Méthé \& Derocher (2021) available at: https://doi.org/10.5061/dryad.4qrfj6q96. Please download the data, create a folder in your working directory called **Data**, and place the file **PB_Argos.csv** in that **Data** folder.
+
+# Introducing the method with a toy state-space model
+
+## Model
+
+We start with a simple state-space model (SSM). This model is not linked to an ecological example; it's just a teaching tool. 
+It is a linear SSM with normal error distributions that consists of two equations for two time series.
+
+The process equation is:
+\begin{equation}
+  z_t = z_{t-1} + \epsilon_t, \;\;\; \epsilon_t \sim \text{N}(0, \sigma_p^2),
+  \label{E.toy2p.p} 
+\end{equation}
+where $z_t$ is the state value at time $t$, for $t=1, ..., T$. The states are generally unknown, i.e., cannot be observed directly, and are sometimes referred to as latent states. This equation represents the evolution of the hidden state as a random walk. The equation implies that there is some process variation and is here described by a Normal distribution with standard deviation $\sigma_p$. For simplicity, we set the initial state value to be 0, i.e., $z_0 =0$.
+
+The observation equation is:
+\begin{equation}
+  y_t = z_{t} + \eta_t, \;\;\; \eta_t \sim \text{N}(0, \sigma_o^2),
+  \label{E.toy2p.o}
+\end{equation}
+where $y_t$ is the observation at time $t$, for $t=1, ..., T$. This equation links the observation at time $t$ to the underlying state at that time. The equation implies that there are observation error and, here, is described by a Normal distribution with standard deviation $\sigma_o$.
+
+This model has two parameters: $\sigma_o, \sigma_p$.
+
+## Simulated data
+
+To first explore how TMB works, we will use data simulated from this model.
+
+First, let us simulate the process for a time series of length 200 ($T=200$), with an additional time step for the state at $t=0$. To be consistent with the model description, we set to $z_0 = 0$. We choose the standard deviation of the process variation, $\sigma_p$, to be 0.1.
+
+```{r process.sim, tidy=FALSE}
+# Create a vector that will keep track of the states
+# It's of length T + 1 (+1 for t=0)
+# T is not a good name in R, because of T/F, so we use TT
+TT <- 200
+z <- numeric(TT + 1)
+# Standard deviation of the process variation
+sdp <- 0.1
+# Set the seed, so we can reproduce the results
+set.seed(553)
+# For-loop that simulates the state through time, using i instead of t,
+for(i in 1:TT){
+  # This is the process equation
+  z[i+1] <- z[i] + rnorm(1, 0, sdp)
+  # Note that this index is shifted compared to equation in text,
+  # because we assume the first value to be at time 0
+}
+```
+
+Let us plot the time series we have created.
+
+```{r process.sim.fig}
+plot(0:TT, z,
+     pch = 19, cex = 0.7, col="red", ty = "o", 
+     xlab = "t", ylab = expression(z[t]), las=1)
+```
+
+Second, let us simulate the observations. We set the standard deviation of the observation error $\sigma_o$ to 0.1.
+
+```{r obs.sim, tidy=FALSE}
+# Create a vector that will keep track of the observations
+# It's of length T
+y <- numeric(TT)
+# Standard deviation of the observation error
+sdo <- 0.1
+# For t=1, ... T, add measurement error
+# Remember that z[1] is t=0
+y <- z[2:(TT+1)] + rnorm(TT, 0, sdo)
+```
+
+Let us plot both the observations and the states. From now on, we are adding extra space on the y-axis to leave space for the legend. Note that the space we assigned may not work for all figure sizes.
+
+```{r obs.sim.fig, tidy=FALSE}
+plot(1:TT, y,
+     pch=3, cex = 0.8, col="blue", ty="o", lty = 3,
+     xlab = "t", ylab = expression(z[t]),
+     xlim = c(0,TT), ylim = c(min(y), max(y)+max(y)/5),
+     las = 1)
+points(0:TT, z,
+       pch = 19, cex = 0.7, col="red", ty = "o")
+legend("top",
+       legend = c("Obs.", "True latent states"),
+       pch = c(3, 19),
+       col = c("blue", "red"),
+       lty = c(3, 1),
+       horiz=TRUE, bty="n", cex=0.9)
+```
+
+With real data, we usually only have the observations, $y_t$, and do not know the true states, $z_t$. However, simulated data allow us to see the discrepancies between the observed values and the values for the process they represent.
+
+## Fitting the model using TMB
+
+In TMB you need to create a C++ file that computes the value of the negative log likelihood for your data and for a given set of parameter values. Then, you compile the C++ code using `TMB` and use that function in one of R's optimizers to find the minimum negative log likelihood. The beauty of `TMB` is that it uses the Laplace approximation to integrate over the states and computes the gradient efficiently, which speeds up the optimizing process.
+
+Assuming you have properly installed `TMB` (see above), let's load it.
+
+```{R LoadTMB, message=FALSE}
+library(TMB)
+```
+
+### Writing the negative log-likelihood function in C++
+
+Now, let us create the negative log-likelihood function that we will minimize (equivalent of maximizing the likelihood). We write this function in a special TMB C++ language. The code for the function needs to be saved in a text file. We usually give it the extension .cpp. You can do this directly in R Studio. You write the code just as you would write a separate R script, but you save it as a C++ file by giving it the .cpp extension.
+
+We name the file **toy2p.cpp** and it will contain the following code. Note that in C++, comments are preceded by // or contained within /* */. Also, as explained below, here the code is a little bit more complex than strictly necessary. We have included code that allow us to compute the one-step-ahead residuals and simulate from the model. While these features are not always necessary, they are key to model checking and thus we believe they should be part of all model fitting workflow.
+
+```{Rcpp toy2p.cpp, eval=FALSE}
+/*----------------------- SECTION A --------------------------*/
+// Link to the TMB package
+#include <TMB.hpp>
+
+/*----------------------- SECTION B --------------------------*/
+// Define main function
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+
+  /*----------------------- SECTION C --------------------------*/
+  // Specify the input data
+  DATA_VECTOR(y);
+
+  // For one-step-ahead residuals
+  DATA_VECTOR_INDICATOR(keep, y);
+
+  // Specify the parameters
+  PARAMETER(logSdP); // Log of st. dev. for the process variation
+  PARAMETER(logSdO); // Log of st. dev. for the observation error
+
+  // Specify the random effect/states
+  PARAMETER_VECTOR(z);
+
+  /*----------------------- SECTION D --------------------------*/
+  // Transform standard deviations
+  // exp(par) is a trick to make sure that the estimated sd > 0
+  Type sdp = exp(logSdP);
+  Type sdo = exp(logSdO);
+
+  /*----------------------- SECTION E --------------------------*/
+  // Define the variable that will keep track of
+  // the negative log-likelihood (nll)
+  Type nll = 0.0;
+
+  /*----------------------- SECTION F --------------------------*/
+  // Calculate the contribution to the negative log-likelihood
+  // of the process equation for t=1,...,T
+  // Remember that we fixed z_0 = 0
+  for(int i = 1; i < z.size(); ++i){
+    nll -= dnorm(z(i), z(i-1), sdp, true);
+
+    //*----------------------- SECTION G --------------------------*/
+    // Simulation block for process equation
+    SIMULATE {
+      z(i) = rnorm(z(i-1), sdp);
+    }
+  }
+
+  /*----------------------- SECTION H --------------------------*/
+  // Calculate the contribution to the negative log-likelihood
+  // of the observation equation for t=1,...,T
+  // Remember, the first element of z is at t=0,
+  // while the first element of y is at t=1
+  for(int i = 0; i < y.size(); ++i){
+    nll -= keep(i)*dnorm(y(i), z(i+1), sdo, true);
+
+    //*----------------------- SECTION I --------------------------*/
+    // Simulation block for observation equation
+    SIMULATE {
+      y(i) = rnorm(z(i+1), sdo);
+    }
+  }
+
+
+  /*----------------------- SECTION J --------------------------*/
+  // State the transformed parameters to report
+  // Using ADREPORT will return the point values and the standard errors
+  // Note that we only need to specify this for parameters
+  // we transformed, see section D above
+  // The other parameters, including the random effects (states),
+  // will be returned automatically
+  ADREPORT(sdp);
+  ADREPORT(sdo);
+
+  /*----------------------- SECTION K --------------------------*/
+  // Report simulated values
+  SIMULATE{
+    REPORT(z);
+    REPORT(y);
+  }
+
+
+  /*----------------------- SECTION L --------------------------*/
+  // State that we want the negative log-likelihood to be returned
+  // This is what the optimizer in R will minimize
+  return nll;
+
+}
+
+```
+
+
+A few notes about C++:
+
+- C++ uses round brackets `()` for both objects and functions
+
+- the index of an object in C++ starts at 0, not 1. For example, to get the first element of a vector called `x`, you write `x(0)`. This is why the for-loops in sections F and H end before the length of the index, which is specified by `.size()`. If R crashes when you compile the code (see below for compiling instruction), the most likely culprit is an index problem, so check your for-loops.
+
+- lines end with `;`
+
+- Many of the density functions available in R are available in C++, at least when using the `TMB package`. These usually have the same names and arguments as those in R. For example, in sections F and H we use `dnorm` just like we would in R.
+
+A few tips about writing your function:
+
+- If we want to use an unconstrained optimizer in R, we have to specify in the negative log-likelihood function that we transform the values provided by the optimizer into values that are in the appropriate domain. For example, here in  section D, we exponentiate the input log-transformed standard deviations (logSdP and logSdO) to ensure that the standard deviations have positive values. We do this so that we can use an unconstrained optimizer, yet only have positive estimated values for the standard deviations.
+
+- By default, `TMB` will only return the estimated values in the same form as given in the function (e.g., `logSdP` rather than `sdp`). To be able to retrieve the estimate values of interest, we need to specify that we want them returned. This is done in section J.
+
+- Note that we have included simulation blocks (sections G, I, and K), even though these blocks are not necessary to fit the model to data. These blocks are extremely useful for model validation, see the model validation section below for details.
+
+- Similarly, while it is not necessary to fit the model, we have added an indicator variable (`keep`) in both sections C and H. This indicator variable is necessary to calculate the one-step-ahead residuals that we will discuss in the model validation section.
+
+Now that a few things are defined, it may be easier to go back to the function and see what it means. 
+
+- Section A loads the packages needed. 
+
+- Section B indicates that we are defining the main function that will calculate the negative log likelihood. 
+
+- Section C defines the data and parameters. The values of both data and parameters will be put in through R. 
+
+- Section D transforms the parameters so that they are constrained appropriately (here, that the standard deviation are $>0$). 
+
+- Section E creates the object that will keep track of the negative log likelihood. 
+
+- Section F has a for-loop that calculates the contribution to the negative log likelihood of the process equation. 
+
+- Section G allows to simulate the process equation.
+
+- Section H calculates the contribution to the negative log likelihood of the observation equation. Note that using `keep` tells `TMB` that this is where we would remove the data for the one-step ahead residuals. 
+
+- Section I allows to simulate the observation equation. 
+
+- Section J indicates that we want the parameters in their untransformed form to be returned with their standard errors. 
+
+- Section K indicates what to report when we simulate the model. 
+
+- Section L indicates that the main item the function returns is the negative log likelihood.
+
+Now that we have the negative log likelihood C++ file saved, we go back to R.
+
+### Compiling and loading C++ function
+
+The first thing we want to do is compile the C++ code and load it so we can use it to calculate the negative log likelihood of our model. Here, our **toy2p.cpp** file is found in the working directory.
+
+```{r tmbCompile,  results="hide"}
+compile("toy2p.cpp", flags="-Wno-unused-variable")
+dyn.load(dynlib("toy2p"))
+```
+
+### Preparing the model for fitting
+
+First, we need to prepare the data. This is going to be a list with all the items found in the .cpp files that are of the type `DATA` (e.g., `DATA_VECTOR`). Here, we only have `y` which is the time series of observed values.
+
+```{r prepY}
+dataTmb <- list(y = y)
+```
+
+Second, we need a list with the parameters. Again the names need to match those in the .cpp file. These are the starting values for the parameters. Note that this includes both the parameters and the states.
+
+```{r parPrep, tidy=FALSE}
+par2pTmb <- list(logSdP = 0, logSdO = 0,
+             z=rep(0, length(dataTmb$y)+1))
+```
+
+By default all values of `par2pTmb` will be estimated, but we assume that we know the value of the state at time 0, $z_0 = 0$. To provide this information, we can create a named list that we will input for the argument `map` of the function `MakeADFun` below. The elements of `map` should have the same name and size as those in `par2pTmb`, but we only need to specify the elements that we want to manipulate, here `par2pTmb$z`. To fix a value, we set that value to `NA`. The values that are estimated should have a different entry and all values should be factors.
+
+```{r tmbMapPrep}
+mapTmb <- list(z=as.factor(c(NA,1:length(dataTmb$y))))
+```
+
+Before we can fit the model, we need to use the function `MakeADFun` to combine the data, the parameters, and the model and create a function that calculates the negative
+log likelihood and the gradients. 
+
+To identify our random effects, namely the states, $z_t$, we set the argument `random` to equal the name of the parameters that are random effects. The argument `DLL` identify the compiled C++ function to be linked.
+
+```{r MakeADFun, tidy=FALSE}
+m2pTmb <- MakeADFun(data = dataTmb, 
+                    parameters = par2pTmb, 
+                    map = mapTmb, 
+                    random = "z",
+                    DLL = "toy2p")
+```
+
+### Fitting the model to data
+
+We fit the model using `nlminb`, which is a base R optimizer, but we input the object returned by `MakeADFun`.
+
+```{r tmbOpt, tidy=FALSE, cache=TRUE}
+f2pTmb <- nlminb(start = m2pTmb$par, # Initial values for the parameters
+                 objective = m2pTmb$fn, # Function to be minimized
+                 gradient = m2pTmb$gr) # Gradient of the objective
+```
+
+It is important to check whether the model converged.
+
+```{r}
+f2pTmb$message
+```
+
+A message stating `"both X-convergence and relative convergence (5)"` would also indicate convergence.
+
+### Exploring the results
+
+To look at the parameter estimates, you can use the function `sdreport` and object object created by `MakeADFun`.
+
+```{r tmbEst, tidy=FALSE}
+sdr2pTmb <- summary(sdreport(m2pTmb))
+# This will have the parameters and states
+# So we can just print the parameters
+cbind("Simulated" = c(sdp, sdo),
+  sdr2pTmb[c("sdp", "sdo"),])
+```
+
+We can see that the estimates for both the process variation and the observation error are close to their true value of 0.1, with relatively small standard errors (SEs).
+
+We can get the smoothed state values with the `sdreport` function as above and this will give you the SEs for these states. If you are only interested in the state values (not theis SEs), you can also extract them directly from the model object.
+
+```{r toy.states.est, tidy=FALSE, cache=TRUE}
+# To get the point estimate and the SE of the states
+zsSe2pTmb <- sdr2pTmb[row.names(sdr2pTmb)=="z",]
+head(zsSe2pTmb)
+# To get only the point estimates of the states
+zs2pTmb <- m2pTmb$env$parList()$z
+head(zs2pTmb)
+```
+
+Note that in this case, because we fixed the value of the state at time $t=0$, the first method, which looks at the predicted values, only returns state values for $t>0$.
+
+We can use the SEs to calculate the 95\% confidence intervals.
+
+```{r tmbCI, tidy=FALSE}
+zsCIl2pTmb <- zsSe2pTmb[,1] + 
+  qnorm(0.025, sd = zsSe2pTmb[,2])
+zsCIu2pTmb <- zsSe2pTmb[,1] + 
+  qnorm(0.975, sd = zsSe2pTmb[,2])
+```
+
+We can now overlay the state estimates along with their confidence intervals on the plot of the simulated data.
+
+```{R tmbRp, tidy=FALSE}
+plot(1:TT, y,
+     pch=3, cex=0.8, col="blue", ty="o", lty = 3,
+     xlab = "t", ylab = expression(z[t]),
+     xlim = c(0,TT), ylim = c(min(y), max(y)+max(y)/5),
+     las = 1)
+points(0:TT, z,
+       pch=19, cex=0.7, col = "red", ty="o")
+polygon(c(1:TT, TT:1), c(zsCIl2pTmb,rev(zsCIu2pTmb)),
+        col=rgb(1,0.7,0.4,0.3), border=FALSE)
+lines(0:TT, zs2pTmb, 
+      col= "darkgoldenrod1", lwd = 2)
+legend("top",
+       legend = c("Obs.", "True states", "Smooth. states"),
+       pch = c(3, 19, NA),
+       col = c("blue", "red", "darkgoldenrod1"),
+       lwd = c(1, 1, 2), lty = c(3, 1, 1),
+       horiz=TRUE, bty="n", cex=0.9)
+```
+
+### Model selection
+
+We sometimes have more than one model to explore. For example, we could fit the more general and slightly more complex version of the model, where we are estimating in addition to the standard
+deviations, two additional parameter: $\alpha$ and $\beta$. 
+
+The process equation of this new model is:
+\begin{equation}
+  z_t = \beta z_{t-1} + \epsilon_t, \;\;\; \epsilon_t \sim \text{N}(0, \sigma_p^2),
+  \label{E.toy4p.p}
+\end{equation}
+where $\beta$ represents the autocorrelation in the state values. 
+
+The observation equation of this new model is:
+\begin{equation}
+  y_t = \alpha z_{t} + \eta_t, \;\;\; \eta_t \sim \text{N}(0, \sigma_o^2),
+  \label{E.toy4p.o}
+\end{equation}
+where $\alpha$ is a constant of proportionality that represents any systematic discrepancy between the observations and the states (e.g., the average detection rate).
+
+In our simulation, both $\alpha$ and $\beta$ are implicitly set to 1. Here we estimate these values.
+
+To fit this model in ```TMB```, we will create a new file called **toy4p.cpp**. Note that this is exactly the same as **toy2p.cpp** except that we added the two new parameters in sections C, and F to I.
+
+```{Rcpp toy4p.cpp, write_chunk=TRUE, eval=FALSE}
+/*----------------------- SECTION A --------------------------*/
+// State that we need the TMB package
+#include <TMB.hpp>
+
+/*----------------------- SECTION B --------------------------*/
+// Define main function
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+
+  /*----------------------- SECTION C --------------------------*/
+  // Specify the input data
+  DATA_VECTOR(y);
+
+  // For one-step-ahead residuals
+  DATA_VECTOR_INDICATOR(keep, y);
+
+  // Specify the parameters
+  PARAMETER(logSdP); // Log of st. dev. for the process variation
+  PARAMETER(logSdO); // Log of st. dev. for the observation error
+  PARAMETER(alpha);
+  PARAMETER(beta);
+
+  // Specify the random effect/states
+  PARAMETER_VECTOR(z);
+
+  /*----------------------- SECTION D --------------------------*/
+  // Transform standard deviations
+  // exp(par) is a trick to make sure that the estimated sd > 0
+  Type sdp = exp(logSdP);
+  Type sdo = exp(logSdO);
+
+  /*----------------------- SECTION E --------------------------*/
+  // Define the variable that will keep track of
+  // the negative log-likelihood (nll)
+  Type nll = 0.0;
+
+  /*----------------------- SECTION F --------------------------*/
+  // Calculate the contribution to the negative log-likelihood
+  // of the process equation for t=1,...,T
+  // Remember that we fixed z_0 = 0
+  for(int i = 1; i < z.size(); ++i){
+    nll -= dnorm(z(i), beta*z(i-1), sdp, true);
+
+    //*----------------------- SECTION G --------------------------*/
+    // Simulation block for process equation
+    SIMULATE {
+      z(i) = rnorm(beta*z(i-1), sdp);
+    }
+  }
+
+  /*----------------------- SECTION H --------------------------*/
+  // Calculate the contribution to the negative log-likelihood
+  // of the observation equation for t=1,...,T
+  // Remember, the first element of z is at t=0,
+  // while the first element of y is at t=1
+  for(int i = 0; i < y.size(); ++i){
+    nll -= keep(i)*dnorm(y(i), alpha*z(i+1), sdo, true);
+
+    //*----------------------- SECTION I --------------------------*/
+    // Simulation block for observation equation
+    SIMULATE {
+      y(i) = rnorm(alpha*z(i+1), sdo);
+    }
+  }
+
+  /*----------------------- SECTION J --------------------------*/
+  // State the transformed parameters to report
+  // Using ADREPORT will return the point values and the standard errors
+  // Note that we only need to specify this for parameters
+  // we transformed, see section D above
+  // The other parameters, including the random effects (states),
+  // will be returned automatically
+  ADREPORT(sdp);
+  ADREPORT(sdo);
+
+  /*----------------------- SECTION K --------------------------*/
+  // Report simulated values
+  SIMULATE{
+    REPORT(z);
+    REPORT(y);
+  }
+
+
+  /*----------------------- SECTION L --------------------------*/
+  // State that we want the negative log-likelihood to be returned
+  // This is what the optimizer in R will minimize
+  return nll;
+
+}
+
+```
+
+As before, we compile and load the function.
+
+```{r tmbfCompile, results="hide"}
+compile("toy4p.cpp", flags="-Wno-unused-variable")
+dyn.load(dynlib("toy4p"))
+```
+
+We can use the same data and map objects as above, but we need to change the object containing the initial parameter values, because we have two new parameters to estimate. 
+
+We then get the MLE. Note that while we can often use uninformative starting values (e.g., 0), we can run into estimation problems if we set all the starting values as 0s. To avoid these problems, we use the true simulated values for the starting values. With real data, we could have started with sensible values rather than 0.
+
+```{r tmbfMLE, tidy=FALSE}
+par4pTmb <- list(logSdP = log(0.1), logSdO = log(0.1), 
+                 alpha = 1, beta = 1, # New parameters
+                 z=rep(0,length(dataTmb$y)+1))
+m4pTmb <- MakeADFun(dataTmb, par4pTmb, map=mapTmb, random= "z",
+                  DLL= "toy4p", silent=TRUE)
+f4pTmb <- nlminb(m4pTmb$par, m4pTmb$fn, m4pTmb$gr)
+f4pTmb$message
+```
+
+We can see here that the optimizer has converged.
+
+We can use again `sdreport` to get the parameter estimates and their SEs.
+
+```{r tmbfest, tidy=FALSE}
+sdr4pTmb <- summary(sdreport(m4pTmb))
+cbind(Simulated = c(sdp, sdo, 1, 1),
+      sdr4pTmb[c("sdp", "sdo", "beta", "alpha"),])
+```
+
+We can see here that compared to the estimates from the original model, the more complex and flexible model has much
+higher standard errors. As mentioned above, the optimization process is also quite sensitive to the starting values.
+
+We can use AIC to compare these two models. Since the C++ function calculates the negative log likelihood and is the objective of the optimization procedures, we can just use the returned value by `nlminb`.
+
+```{r tmbAIC, tidy=FALSE}
+aic2pTmb <- 2 * 2 + 2 * f2pTmb$objective
+aic4pTmb <- 2 * 4 + 2 * f4pTmb$objective
+c(Original = aic2pTmb, 
+  Flexible = aic4pTmb,
+  Difference = aic4pTmb - aic2pTmb)
+```
+
+We can see that the original model has a lower AIC than the more flexible model. Thus the original model is considered better. If the two models were equivalent, we would expect a AIC difference of 4 ($2k$), but here the difference is much smaller. This may be because the more flexible model is overfitting the data.
+
+### Checking estimability and model fit with simulations
+
+As mentioned above, it is good practice to include simulation blocks
+within the C++ code because it can be advantageous to use `TMB` simulation functions to simulate directly from the model we fit to data. This can speed
+up the process and, as we will see below, can help assess the model fit. 
+
+`TMB` has various simulators that have the same naming convention as those in R  (e.g., `rnorm()`, `rpois()`).
+
+In the **toy2p.cpp** file we created above, we have three simulation blocks:
+
+- Section G simulates the process equation,
+
+- Section I simulates the observation equations, and
+
+- Section K identifies the simulated values to return.
+
+If we want to recreate the exact same simulation as we did above, our first step is to create a model object with `MakeADFun`. 
+
+We need to set up the parameter and data object. We will create a data object with 0s, which has the length of the time series we want to create. 
+
+```{r sim.tmb.data, tidy=FALSE}
+dataSimTmb <- list(y = numeric(TT))
+```
+
+Instead of using 0 as parameter values for the two standard deviations, we will set these values to 0.1, the values used in the original simulations above.
+For the states, we will create a vector of 0 of the length of our state vector. 
+```{r sim.tmb.par, tidy=FALSE}
+parSimTmb <- list(logSdP = log(0.1), logSdO = log(0.1),
+             z=rep(0,length(dataSimTmb$y)+1))
+```
+
+We will then create the `TMB` object using `MakeADFun` function, just as above. We will use the same `map` object as above to tell `TMB` that the initial state value is $z_0 = 0$.
+
+```{r tmbSimLGSSMMAF, tidy=FALSE}
+mSimTmb <- MakeADFun(dataSimTmb, parSimTmb, map=mapTmb, random= "z",
+                  DLL= "toy2p", silent=TRUE)
+```
+
+Finally, we will simulate the data using the using the created object and its `$simulate()`.
+
+```{r tmbSimLGSSM, cache=TRUE}
+set.seed(553) # Same random seed as above
+simTmb <- mSimTmb$simulate()
+```
+
+Both the observations `y` and the states `z` are returned. This is because
+section K of the C++ code specifically states to return both. Because we used the same random seed as for the original simulation, you will get the same results.
+
+How can these simulation blocks be useful for model verification?
+
+First, simulations can be used to assess whether we can estimate the parameter and states as we did above with our simulated data in R (e.g. comparing values used to simulate the data to the estimated values), but with only a few lines of code.
+
+Another simple, albeit often conservative, way to look at the model fit using simulations is to use the frequentist equivalent of posterior predictive measures. The idea is to define a test statistic (e.g., the mean of $\mathbf{y}$) and calculate how probable more extreme values of this test statistic would be if we were to sample from our model compared to the observed test statistic value. Here, we will look at two test statistics: the mean $y_t$ and the standard deviation of $y_t$. Specifically, we will simulate a time series of observations 200 times and, for each replicate, calculate the mean and standard deviation of that replicate. We will then be able to compare the simulated test statistics to the observed test statistics.
+
+Note here we will use the parameter values we estimated for this simple model above.
+
+```{r tmbTestStat, tidy=FALSE, cache=TRUE}
+nrep <- 200 # Number of replicates
+set.seed(999) # Set the random seed to be able to reproduce the simulation
+# Create matrix to keep track of replicate test statistic values
+repsT <- matrix(NA, nrow=nrep, ncol=2)
+colnames(repsT) <- c("Mean", "SD")
+# Parameter to use to simulate
+parSp <- m2pTmb$env$par
+# Set to estimated values
+parSp[1:2] <- f2pTmb$par
+for(i in 1:nrep){ # For each replicate
+  yrep <- mSimTmb$simulate(par=parSp)$y # simulate observations
+  repsT[i, "Mean"] <- mean(yrep)
+  repsT[i, "SD"] <- sd(yrep)
+}
+```
+
+To see if the observed test statistics are in line with those produced from the simulations from the model, we can plot histograms of the simulated test statistic values, and see where the observed test statistic fall.
+
+```{r tmbHist, tidy=FALSE}
+layout(matrix(1:2,nrow=1))
+hist(repsT[,"Mean"], breaks=30,
+     main = "", las=1, col="darkgrey",
+     xlab = expression(T(y^{i})))
+box()
+abline(v=mean(y), col="hotpink", lwd=4)
+title("Mean Obs.", line=-1.5, adj=0.9)
+hist(repsT[,"SD"], breaks=30,
+     main="", las=1, col="darkgrey",
+     xlab = expression(T(y^{i})))
+box()
+abline(v=sd(y), col="hotpink", lwd=4)
+title("Sd Obs.", line=-1.5, adj=0.9)
+```
+
+We can see here that the observed test statistics are close to the main peaks from the histograms, which suggests that the observations are in line with the prediction of the model. But again, one needs to be careful, as these tests tend to be conservative.
+
+### Effects of starting values and diagnostics for a mispecified model
+
+Now let us explore whether the method described above could detect the lack of fit of model with poor parameter estimates. We will use this opportunity to also look at the effect of the starting values on the parameter and state estimates. For this example, we will use again the full more flexible model. However, in this case instead of using the true parameter values as starting values for the optimizer, we will use the default starting values of 0.
+
+```{r tmbpvalbad, tidy = FALSE}
+# Set the starting values
+# Here we use 0s everywhere instead of the true values
+parMisTmb <- list(logSdP = 0, logSdO = 0, alpha = 0, beta = 0,
+              z=rep(0,length(dataSimTmb$y)+1))
+# Make the TMB model function
+# We use the original data and map (dataTmb, mapTmb)
+mMisTmb <- MakeADFun(dataTmb, parMisTmb, map=mapTmb, random= "z",
+                   DLL= "toy4p", silent=TRUE)
+# Find the MLE - more like a local max
+fMisTmb <- nlminb(mMisTmb$par, mMisTmb$fn, mMisTmb$gr)
+# Converged
+fMisTmb$message
+```
+
+It looks like the optimizer converged to a solution, but as we can see below, the parameter estimates based on the previous set of initial values and those used above are quite different. The fact that the parameter values for $\alpha$ and $\beta$ are exactly the same as the input starting value should raise warning flags.
+
+```{r tmbP0comp, tidy=FALSE}
+c(New = fMisTmb$objective, Old = f4pTmb$objective)
+rbind(New = fMisTmb$par, Old = f4pTmb$par)
+```
+
+To see how this estimation problem could affect the model fit, let us use again our frequentist version of the posterior predictive measures. 
+
+```{r tmbpvalbad2, tidy = FALSE}
+set.seed(999) # Set the random seed to be able to reproduce the simulation
+# Create matrix to keep track of replicate test statistic values
+repsB <- matrix(NA, nrow=nrep, ncol=2)
+colnames(repsB) <- c("Mean", "SD")
+# Parameter to use to simulate
+parMisp <- mMisTmb$env$par
+# Set to estimated values
+parMisp[1:4] <- fMisTmb$par
+for(i in 1:nrep){ # For each replicate
+  yrep <- mMisTmb$simulate(par=parMisp)$y # simulate observations
+  repsB[i, "Mean"] <- mean(yrep)
+  repsB[i, "SD"] <- sd(yrep)
+}
+```
+
+Now let us compare the simulated and observed test statistics visually.
+
+```{r tmbHistpar0, tidy=FALSE}
+layout(matrix(1:2,nrow=1))
+# Simulated test statistics vs observed test statistics
+hist(repsB[,"Mean"], breaks=30,
+     main = "", las=1, col="darkgrey",
+     xlab = expression(T(y^{i})),
+     xlim = range(c(repsB[,"Mean"], c(0.9,1.1)*mean(y))))
+box()
+abline(v=mean(y), col="hotpink", lwd=4)
+title("Mean Obs.", line=-1.5, adj=0.9)
+hist(repsB[,"SD"], breaks=30,
+     main = "", las=1, col="darkgrey",
+     xlab = expression(T(y^{i})),
+     xlim = range(c(repsB[,"SD"],  c(0.9,1.1)*sd(y))))
+box()
+abline(v=sd(y), col="hotpink", lwd=4)
+title("Sd Obs.", line=-1.5, adj=0.9)
+```
+
+Clearly, the observed measures are quite different from those generated from the model with these parameter estimates. Thus, while we want to be careful when we fail to find a difference between the observed and simulated test statistics, finding such discrepancies is a clear sign of problem.
+
+### Looking at model assumptions with residuals
+
+It is useful to look at the one-step-ahead residuals to assess model fit. See Auger-Méthé et al. 2021 for description of these residuals. The `TMB` function `oneStepPred` can be used to easily calculate the one-step-ahead residuals. The objects returned by `MakeADFun` can change (e.g., when we use `nlminb` on it). To be make sure that we are applying the function on the fitted model, let us rerun the functions `MakeADFun` and `nlminb` first.
+
+```{r tmb1saRes, tidy=FALSE, cache=TRUE}
+m2pTmb <- MakeADFun(data=dataTmb, parameters=par2pTmb, map=mapTmb, random= "z",
+                  DLL= "toy2p", silent=TRUE)
+f2pTmb <- nlminb(m2pTmb$par, m2pTmb$fn, m2pTmb$gr)
+res2pTmb <- oneStepPredict(m2pTmb, observation.name ="y",
+                             data.term.indicator="keep", trace=FALSE)
+head(res2pTmb)
+```
+
+It returns a matrix with columns that have the predicted observation value (column `mean`) and a column with the residuals (column `residual`). These are one-step-ahead residuals where you use observation up to time $t-1$, as such you cannot get residuals for the first observation. These one-step-ahead residuals should be distributed with a standard normal. Thus we can used the same type of diagnostics such as qqplots to check normality. We can also  use the autocorrelation function to look at unaccounted temporal correlation.
+
+```{r tmbQQplot, tidy=FALSE}
+layout(matrix(1:2,nrow=1))
+qqnorm(res2pTmb$residual,
+       main="", pch=16, cex=0.8)
+qqline(res2pTmb$residual, col="hotpink", lwd=2)
+acf(res2pTmb$residual)
+```
+
+When we use `TMB`, it is important to assess whether the Laplace approximation is adequate. To check the Laplace approximation and simulation consistency, we can use the function `checkConsistency`. 
+
+```{r tmbConsistency, tidy=FALSE}
+set.seed(12345)
+checkConsistency(m2pTmb)
+```
+
+Here we can see that the p-value for the simulations is high, and above the 0.05 significance level, and thus we are confident that the simulation is consistent with the implemented negative log-likelihood function. The size of the estimated biases for the parameters are both small, indicating that Laplace approximation is not inducing large biases^[If the function returns NA, install `TMB` from Github (https://github.com/kaskr/adcomp/) rather than from CRAN. If using a Mac, you may need to add SHLIB\_OPENMP\_CFLAGS= in the Makevars file.]. See `?checkConsistency` for more details.
+
+### Using the likelihood profile to check parameter estimates
+
+To assess whether you may have encountered parameter estimation problems, it is useful to look at the likelihood profile. We can use the function `tmbprofile` to do this quickly. For example, let us look at the likelihood profile of the process variation parameter of the simple model.
+
+```{r tmbLikProf, tidy=FALSE}
+profLikSdp2pTmb <- tmbprofile(m2pTmb, "logSdP", trace=FALSE)
+plot(profLikSdp2pTmb, las=1)
+```
+
+Note that what is returned is a plot of the negative log likelihood. We can see here a single minimum peak, suggesting that there is no identifiability issue. One can use the `tmbprofile` argument `ytol` to widen the range of parameter values explored.
+
+Now let us look at the likelihood profile of the parameters of the more flexible model, where we estimate the two standard deviations as well as $\alpha$ and $\beta$. This code may take a few minutes to run.
+
+```{r tmbLikProfFlex, tidy=FALSE}
+profLikSdp4pTmb <- tmbprofile(m4pTmb, "logSdP", trace=FALSE)
+plot(profLikSdp4pTmb, las=1)
+```
+
+We can see that for this more complex model we have estimation problems. The likelihood profile is flat in many places, indicating that multiple parameter values will return the same likelihood value. We may even get warning messages.
+
+As mentioned in Appendix S3 of Auger-Méthé et al. 2021, this identifiability problem appears to be mostly occurring when $z_0=0$.
+
+# State-space model from Argos movement data: a polar bear example
+
+Using the data set available through Dryad Auger-Méthé and Derocher (2021) doi:10.5061/dryad.4qrfj6q96, we will explore a classic state-space model for Argos movement data, which is highly error prone. 
+
+Let us load the Argos data.
+
+```{r polar.bear.data}
+# Read the data
+dataPbA <- read.csv("Data/PB_Argos.csv")
+# Look at what it contains
+head(dataPbA)
+```
+
+We can see that we have a column with the date and time, one with the Argos quality class, one with the latitude and one with the longitude.
+
+Let us plot the data.
+
+```{r polar.bear.plot, tidy=FALSE}
+plot(dataPbA[,c("Lon", "Lat")], 
+     pch=3, cex=0.7, col = "blue", ty="o", lty=3, las=1)
+```
+
+There are clear outliers, which are likely the results of observation error rather than a bear moving at record speed.
+
+In Appendix S1 of Auger-Méthé et al. 2021, you can see how this movement compares to the GPS tracks.
+
+Here we will use the Argos data to estimate states at regular time intervals. We will estimate states once a day at 17:00. The following code chunk is just data manipulation to create the $i$ index and the time proportion $j_i$ so that we relate the time of the observed Argos locations to these fix time intervals.
+
+```{r time.interval, tidy=FALSE}
+# Transform DateTime in R date.time class
+dataPbA$Time <- as.POSIXlt(dataPbA$DateTime,
+                       format="%Y.%m.%d %H:%M:%S", tz="UTC")
+dataPbA$Date <- as.Date(dataPbA$Time)
+
+# Create a regular time series that will
+# represent the time at which we will estimate the states (z)
+# Note that because our last Argos location is after 17:00,
+# we end time series one day after
+allDays <- seq(dataPbA$Date[1],
+               dataPbA$Date[length(dataPbA$Time)] + 1, 1)
+allDays <- as.POSIXlt(paste(allDays, "17:00"), tz="UTC")
+
+# Find in between which z (allDays) observation y fall
+# +1 because the it's the proportion of time between t-1 and t, we link with t.
+dataPbA$idx <- findInterval(dataPbA$Time,allDays) + 1
+# Checking how far from the z_t y is
+dataPbA$ji <- as.numeric(24-difftime(allDays[dataPbA$idx],
+                                 dataPbA$Time, units="hours"))/24
+```
+
+It is customary to use error data to help the estimation process. Here we create a matrix with the error values, these values are based on those used in the package `bsam` (Jonsen et al. 2005). We have done a few changes to the values used in `bsam`. In particular, the skewness of the t-distribution is undefined when the degree of freedom is $\leq 3$. We have thus set any degree of freedom values smaller or equal to 3 to 3.00001.
+
+```{r Argos.error, tidy=FALSE}
+ArgosC <- matrix(nrow=6, ncol=4)
+colnames(ArgosC) <- c("TLon","NuLon","TLat","NuLat")
+ArgosC[,"TLon"] <- c(0.037842190, 0.004565261, 0.019461776,
+                     0.008117727, 0.002807138, 0.002608584)
+ArgosC[,"TLat"] <- c(0.027369282, 0.004594551, 0.014462340,
+                     0.004142703, 0.002344425, 0.001098409)
+ArgosC[,"NuLon"] <- c(3.00001, 3.00001, 3.00001,
+                      3.00001, 3.00001, 3.070609)
+ArgosC[,"NuLat"] <- c(3.00001, 3.00001, 3.00001,
+                      3.896554, 6.314726, 3.00001)
+rownames(ArgosC) <- c("B", "A", "0",
+                      "1", "2", "3")
+```
+
+Now we create new columns in the data set that indicate the standard deviation and the degrees of freedom to use with each location.
+
+```{r polar.bear.Argos.Cat}
+dataPbA$ac <- ArgosC[as.character(dataPbA$QualClass),]
+```
+
+## Fitting the model and checking model fit
+
+### Create the C++ code defining the negative log-likelihood
+
+Again, the first thing we need to do to be able to fit the model in `TMB` is to create a file that will contain the C++ code to evaluate the negative log-likelihood value of the model. We will name the file **dcrw.cpp**.
+
+```{Rcpp dcrw.cpp, write_chunk=TRUE, eval=FALSE, tidy=FALSE}
+/*----------------------- SECTION A --------------------------*/
+// State that we need the TMB package
+#include <TMB.hpp>
+// Needed for the multivariate normal function: MVNORM_t
+using namespace density;
+
+/*----------------------- SECTION B --------------------------*/
+// Define main function
+template<class Type>
+Type objective_function<Type>::operator() ()
+{
+  
+  /*----------------------- SECTION C --------------------------*/
+  // Specify the input data
+  DATA_ARRAY(y); // Longitude and latitude of locations
+  DATA_VECTOR(idx); // Index linking irregular obs. time i to state time t
+  DATA_VECTOR(ji); // When is obs. i relative to state t-1 and t
+  DATA_MATRIX(ac); // Argos category
+  
+  // For one-step-ahead residuals
+  DATA_ARRAY_INDICATOR(keep, y);
+  
+  // Input parameters - i.e. parameters to estimate.
+  PARAMETER(logitGamma); // Autocorrelation
+  PARAMETER(logSdLon); // Process standard deviation in lon
+  PARAMETER(logSdLat); // Process standard deviation in lat
+  PARAMETER(logPsiLon); // Scaling parameter for error values
+  PARAMETER(logPsiLat); // Scaling parameter for error values
+  
+  // The true/unobserved locations of the animal, i.e states
+  PARAMETER_MATRIX(z);
+  
+  /*----------------------- SECTION D --------------------------*/
+  // Transformation of the input parameters to model format
+  /* These transformations are made to insured that
+   the parameters have sensical values.
+   They do not change the model, they are only a computational trick. */
+  Type gamma = 1.0/(1.0+exp(-logitGamma)); // b/c we want 0 < gamma < 1
+  Type sdLon = exp(logSdLon); // b/c we want sd > 0
+  Type sdLat = exp(logSdLat); // b/c we want sd > 0
+  Type psiLon = exp(logPsiLon); // b/c we want psi > 0
+  Type psiLat = exp(logPsiLat); // b/c we want psi > 0
+  
+  /*----------------------- SECTION E --------------------------*/
+  // Setting the bivariate normal
+  // Variance-covariance matrix for the process equation.
+  // We are using a bivariate normal even if there is no correlation.
+  matrix<Type> covs(2,2);
+  covs << sdLon*sdLon, 0, 0, sdLat*sdLat;
+  
+  // Notes:
+  // - the mean of MVNORM_t is fixed at 0,
+  //   thus we only specify the variance-covariance matrix.
+  // - MVNORM_t evaluates the negative log density
+  MVNORM_t<Type> nll_dens(covs);
+  
+  /*----------------------- SECTION F --------------------------*/
+  // Creating a variable that keeps track of the negative log likelihood
+  Type nll = 0.0;
+  
+  /*----------------------- SECTION G --------------------------*/
+  // Creating a variable for the value used as data in bivariate normal
+  vector<Type> tmp(2);
+  
+  /*----------------------- SECTION H --------------------------*/
+  // Initializing the model
+  // For the 2nd time step, we assume that we have a simple random walk:
+  // z_1 = z_0 + eta
+  // Here tmp is simply the difference between the first two states:
+  // d_1 = z_1 - z_0
+  tmp = z.row(1) - z.row(0);
+  nll += nll_dens(tmp);
+  
+  /*----------------------- SECTION I --------------------------*/
+  SIMULATE{
+    z.row(1) = vector<Type>(z.row(0)) + nll_dens.simulate();
+  }
+  
+  /*----------------------- SECTION J --------------------------*/
+  // nll contribution of the process equation after the 2nd time step
+  // Notes:
+  // - .row(i) gives the ith row of parameter or data matrix,
+  //   so locations at time i.
+  // - loop here is the size of the states vector z,
+  //   thus, if we have missing data this loop will be longer
+  //   than the observation equation
+  //   and will estimate the state value even for
+  //   time steps where we have no observation.
+  for(int i = 2; i < z.rows(); ++i){
+    tmp = (z.row(i) - z.row(i-1)) - (z.row(i-1) - z.row(i-2)) * gamma;
+    nll += nll_dens(tmp);
+  
+   /*----------------------- SECTION K --------------------------*/
+    SIMULATE{
+      z.row(i) = vector<Type>((1+gamma)*z.row(i-1) - gamma*z.row(i-2)) + 
+        nll_dens.simulate();
+    }
+  }
+  
+  /*----------------------- SECTION L --------------------------*/
+  // nll contribution of the observation equation
+  // The loop here is just the size of the observation vector.
+  // We use the time index found in idx to relate
+  // the appropriate state to the observation.
+  for(int i = 0; i < y.matrix().rows(); ++i){
+    // Interpolate the value at time of observation
+    // CppAD::Integer because the index used to get value
+    // in a vector in c++ needs to be a integer to work.
+    tmp = y.matrix().row(i) -
+      ((1.0-ji(i))*z.row(CppAD::Integer(idx(i)-1)) +
+      ji(i)*z.row(CppAD::Integer(idx(i))));
+    
+    // We are using the non-standardised t distribution,
+    // that is why we are correcting the pdf.
+    // Longitude
+    nll -= keep(i,0) * (log(1/(psiLon*ac(i,0))) +
+      dt(tmp(0)/(psiLon*ac(i,0)),ac(i,1),true));
+    // Latitude
+    nll -= keep(i,1) * (log(1/(psiLat*ac(i,2))) +
+      dt(tmp(1)/(psiLat*ac(i,2)),ac(i,3),true));
+
+    
+    /*----------------------- SECTION M --------------------------*/
+    // Simulation of observations
+    y(i,0) = psiLon * ac(i,0) * rt(ac(i,1)) + 
+      ((1.0-ji(i))*z(CppAD::Integer(idx(i)-1),0) +
+      ji(i)*z(CppAD::Integer(idx(i)),0));
+    y(i,1) = psiLat * ac(i,2) * rt(ac(i,3)) + 
+      ((1.0-ji(i))*z(CppAD::Integer(idx(i)-1),1) +
+      ji(i)*z(CppAD::Integer(idx(i)),1));
+  }
+  
+  /*----------------------- SECTION N --------------------------*/
+  // Report the parameters and their standard errors in their model format
+  ADREPORT(gamma);
+  ADREPORT(sdLon);
+  ADREPORT(sdLat);
+  ADREPORT(psiLon);
+  ADREPORT(psiLat);
+  
+  /*----------------------- SECTION O --------------------------*/
+  // Report simulated values
+  SIMULATE{
+    REPORT(z)
+    REPORT(y)
+  }
+  
+  return nll;
+}
+
+```
+
+Here are a few additional notes about TMB/C++:
+
+- While this is not necessary here, given that we are assuming that there is no correlation in the movement in the latitude and longitude coordinates, we are using a bivariate normal rather than two univariate normal distribution. We are using it here in part because the multivariate normal is a very useful distribution, and we wanted to demonstrate how it works. To be able to evaluate the probability density function of a multivariate normal, we need to use `namespace density` as we see in section A. In section E, we then create a covariance matrix that we assign to the multivariate normal. Note that the mean of the multivariate normal is 0 and this cannot be changed and that it will return the negative log density.
+
+- `.row(i)` and `.col(i)` will return the ith row or column of `PARAMETER_MATRIX` and  `DATA_MATRIX`. To be able to use `.row()` and `.col()` on `DATA_ARRAY`, we need to precede these calls by `.matrix()`.
+
+- We used a `DATA_ARRAY` for the observations rather than say a `DATA_MATRIX`. We did so because the indicator objects associated with the one-step-ahead residuals (here `DATA_ARRAY_INDICATOR`), can only be either a vector or an array. 
+
+- In sections L and M, we have to use `CppAD::Integer` to transform the `idx` values into integers. We need to do this because `.row()` methods can only take integers.
+
+- We have created temporary objects in section J to be able to evaluate the densities.
+
+### Compiling and loading the C++ code 
+
+Again, the next step is to compile the C++ code and load the compiled function. This code may take a few minutes to run and may print warnings.
+
+```{r polar.bear.comp, results="hide"}
+compile("dcrw.cpp", flags="-Wno-unused-variable")
+dyn.load(dynlib("dcrw"))
+```
+
+
+### Prepare data and set strating values for parameters
+
+Then, we need to prepare the data, by which we mean create one list that contains all of the data elements needed by C++. Here we need: 1) the matrix `y`, which contains the longitude and latitude of the locations; 2) the vector `idx`, which contains the index that relates the observation at time $i$ to the appropriate state time $t$; 3) the vector `ji`, which contains when the observation falls between $t-1$ and $t$; and 4) the matrix `ac`, which contains all of the error information for the given location. As a note, we are removing 1 from the index value `idx` because the index of C++ starts a 0, not 1.
+
+```{r polar.bear.prep, tidy=FALSE}
+dataPbTmb <- list(y = cbind(dataPbA$Lon, dataPbA$Lat),
+               idx=dataPbA$idx-1, ji=dataPbA$ji, ac=dataPbA$ac)
+```
+
+We then need to create a list with the starting values for the parameters, including the states. To help the optimization, we will set the initial value of the states to be the values of the observed Argos location. This will just start the optimization at the good relative magnitude. We could have alternatively, scaled the model so to have transformed longitude and latitude values that are centered at 0.
+
+```{r polar.bear.initial.val, tidy=FALSE}
+# Setting the initial values for the state.
+# We use the 1st obs. location to start the optimization
+# at a relatively good place
+zinitPbTmb <- matrix(as.numeric(dataPbA[1,c("Lon","Lat")]), 
+                     max(dataPbA$idx), 2, byrow=TRUE)
+# Creating a list of initial values for the parameters
+parPbTmb <- list(logitGamma=0,
+               logSdLon=0, logSdLat=0, logPsiLon=0, logPsiLat=0,
+               z=zinitPbTmb)
+```
+
+### Fitting the state-space model to data
+
+We have now all of the pieces needed to create the object with `MakeADFun`, which will allow us to minimize the negative log likelihood. Note that for more complex model, it sometimes help to allow for more iterations in the inner maximization. This can slow down the process, but here if we use the default maximum number of inner iterations, we will get the error. Thus, we increase the number of inner iterations to 5000 using `inner.control`.
+
+```{r polar.bear.MakeADFun}
+mPbTmb <- MakeADFun(dataPbTmb, parPbTmb, random="z", DLL="dcrw", silent=TRUE,
+                    inner.control = list(maxit=5000))
+```
+
+Using the created object, we can find the MLE with `nlminb`.
+
+```{r polar.bear.nlminb, cache=TRUE}
+fPbTmb <- nlminb(mPbTmb$par, mPbTmb$fn, mPbTmb$gr)
+fPbTmb$message
+```
+
+Looks like it converged, so let us now look at the estimated parameters using `sdreport`.
+
+```{r pbTMBpar, cache=TRUE}
+parestPbTmb <- summary(sdreport(mPbTmb))
+parestPbTmb[c("gamma", "sdLon", "sdLat", "psiLon", "psiLat"),]
+```
+
+So it appears that the movement of this bear is only partially dependent on the movement from the previous step, i.e., $\gamma =$ \Sexpr{round(parestPbTmb["gamma",1],3)}.
+Interestingly, the process variation is quite different in the latitude and longitude direction.
+This could be due to the fact that one degree of latitude and one degree of longitude are not necessarily covering equivalent distance.
+We see also that the correction factors for the longitude and latitude are quite different from one another and might point to the advantage of estimating one for each coordinate.
+
+Now let us look at the state estimates. To extract the state value itself, we use `$env$parList()`. To extract the standard error, we use the matrix returned by `summary(sdreport())` above.
+
+```{r polar.bear.states}
+# Get the point value
+zsPbTmb <- mPbTmb$env$parList()$z
+# Get the standard errors
+zsvPbTmb <- parestPbTmb[rownames(parestPbTmb)%in%"z",]
+zsvPbTmb <- cbind(zsvPbTmb[1:(nrow(zsvPbTmb)/2),2], 
+                  zsvPbTmb[(1+nrow(zsvPbTmb)/2):nrow(zsvPbTmb),2])
+```
+
+Let's plot the results.
+
+```{r polar.bear.plot.states, cache=TRUE}
+plot(zsPbTmb, 
+     pch=19, cex=0.7, col = "red", ty="o", las=1,
+     xlab="Longitude", ylab="Latitude")
+points(dataPbA[,c("Lon", "Lat")], 
+       pch=3, cex=0.7, col = "blue", ty="o", lty=3)
+legend("top",
+       legend = c("Sim. Obs.", "Estimated latent states"),
+       pch = c(3, 19),
+       col = c("blue", "red"),
+       lty = c(3, 1),
+       horiz=TRUE, bty="n", cex=0.9)
+```
+
+In Appendix S1 of Auger-Méthé et al. 2021, we compare the estimated locations with this model to the GPS data, and see that the are quite similar.
+
+### Checking the model fit
+
+It is good to look at the likelihood profile, and we can use again the function `tmbprofile`. 
+
+As it takes a while to run, we will look at only one parameter. In a real analysis, you would look at all of them. To d so, uncomment the other lines
+
+```{r pbtmbProf, tidy=TRUE, cache=TRUE}
+# Gamma
+proflGammaPbTmb <- tmbprofile(mPbTmb, "logitGamma", trace=FALSE)
+plot(proflGammaPbTmb)
+
+# Sd lon and lat
+# proflSdlonPbTmb <- tmbprofile(mPbTmb, "logSdLon", trace=FALSE)
+# plot(proflSdlonPbTmb)
+# proflSdlatPbTmb <- tmbprofile(mPbTmb, "logSdLat", trace=FALSE)
+# plot(proflSdlatPbTmb)
+
+# psi lon and lat
+# proflPsilonPbTmb <- tmbprofile(mPbTmb, "logPsiLon", trace=FALSE)
+# plot(proflPsilonPbTmb)
+# proflPsilatPbTmb <- tmbprofile(mPbTmb, "logPsiLat", trace=FALSE)
+# plot(proflPsilatPbTmb)
+```
+
+All of these profiles look good.
+
+As we did for the toy model we can also check that the Laplace approximations are good and that our simulations are fitted model.
+
+Warning: this process takes time to run. To make it manageable for this tutorial, we will only look at `n=15` simulations, but a higher number should be used when doing a real analysis.
+
+```{r polar.bear.consistency, tidy=FALSE, cache=TRUE}
+set.seed(987)
+consisPbTmb <- checkConsistency(mPbTmb, n=15)
+consisPbTmb
+```
+
+Here, we can see that the p-value for the simulations is high, and above the 0.05 significance level, and thus we are confident that the simulation is consistent with the implemented negative log-likelihood function. The size of the estimated biases for the parameters are small, indicating that Laplace approximation is not inducing large biases^[If the function returns NA, install `TMB` from Github (https://github.com/kaskr/adcomp/) rather than from CRAN. If using a Mac, you may need to add SHLIB\_OPENMP\_CFLAGS= in the Makevars file.]. See `?checkConsistency` for more details.
+
+We can also now simulate from the model. Doing so will simulate a new movement path of the bear and a new set of associated observations.
+
+```{r polar.bear.sim, tidy=FALSE, cache=TRUE}
+set.seed(7263)
+simPbTmb <- mPbTmb$simulate()
+```
+
+Let us plot the results.
+
+```{r polar.bear.sim.fig, tidy=FALSE, cache=TRUE}
+plot(simPbTmb$z, 
+     pch=19, cex=0.7, col = "red", ty="o", las=1,
+     xlab="Longitude", ylab="Latitude",
+     ylim=c(min(simPbTmb$z[,2]),max(simPbTmb$z[,2])+0.4))
+points(simPbTmb$y, 
+       pch=3, cex=0.7, col = "blue", ty="o", lty=3)
+legend("top",
+       legend = c("Sim. Obs.", "Simulated latent states"),
+       pch = c(3, 19),
+       col = c("blue", "red"),
+       lty = c(3, 1),
+       horiz=TRUE, bty="n", cex=0.9)
+```
+
+We could easily use these simulations to assess, at least informally, whether the parameters are estimable.
+
+We can use the simulations to look at the posterior preditive measures.
+
+Warning: this process takes time to run, and we will use a low number of replicates (`nrep=50`) to make it manageable for this tutorial. In a real analysis, we would increase the number of replicates.
+
+```{r polar.bear.sim.assess, tidy=FALSE, cache=TRUE}
+nrep <- 50 # Number of replicates
+set.seed(121212) # Set the random seed to be able to reproduce the simulation
+# Create matrix to keep track of replicate test statistic values
+rep.test.stat <- matrix(NA, nrow=nrep, ncol=2)
+colnames(rep.test.stat) <- c("LonSD", "LatSD")
+for(i in 1:nrep){ # For each replicate
+  yrep <- mPbTmb$simulate()$y # simulate observations
+  rep.test.stat[i, "LonSD"] <- sd(yrep[,1])
+  rep.test.stat[i, "LatSD"] <- sd(yrep[,2])
+}
+# Plot the simulated test statistics, and overlay the observed test statistics values
+layout(matrix(1:2,nrow=1))
+# Simulated test statistics vs observed test statistics
+hist(rep.test.stat[,"LonSD"], breaks=30,
+     main = "", las=1, col="darkgrey",
+     xlab = expression(T(y^{i})))
+abline(v=sd(dataPbTmb$y[,1]), col="hotpink", lwd=4)
+title("SD Lon. Obs.", line=-1.5, adj=0.9)
+hist(rep.test.stat[,"LatSD"], breaks=30,
+     main = "", las=1, col="darkgrey",
+     xlab = expression(T(y^{i})))
+abline(v=sd(dataPbTmb$y[,2]), col="hotpink", lwd=4)
+title("SD Lat. Obs.", line=-1.5, adj=0.9)
+```
+
+Here, we can see that the observed test statistics appear to be in line with the simulated test statistics value. These results suggest that there is no obvious problems with the model, but keep in mind that this is a conservative test, and that we have only explored two test statistics (the standard deviation of the longitude and latitude values).
+
+We can now look at the one-step-ahead residuals. Because the indicator variable used to keep track of the observations to remove during the calculation of one-step-ahead residuals is an array in the C++ code, it is important to make sure the index used in the `subset` argument correctly describes the order in which the observations are added. When a matrix is transformed into an array, the first column is collated to the second column by default. As such, we want to create an index that goes in sequence from longitude to latitude one time step at a time.
+
+```{r pbTmbResidIndex, tidy=FALSE, cache=TRUE}
+# Argos data as a matrix
+head(dataPbTmb$y)
+# Argos data when transformed as a array
+# Notice that it's the longitude first
+head(array(dataPbTmb$y))
+# Create the index vector 
+# that describes the order of observation to add
+pbKeepInd <- as.vector(t(matrix(1:length(dataPbTmb$y), ncol=2)))
+head(pbKeepInd)
+```
+
+Now we can use the function `oneStepPredict` to calculate the one-step-ahead residuals. 
+
+Warning: this will take a few minutes to run.
+
+```{r pbTmbResidy, cache=TRUE}
+pbRes <- oneStepPredict(mPbTmb, observation.name = "y", 
+                        data.term.indicator = "keep", 
+                        discrete=FALSE,
+                        subset = pbKeepInd, trace=FALSE)
+```
+
+We will separate the residuals for the longitude and latitude. The residuals will be ordered in the same way as `pbKeepInd`, and the first two residuals are not well defined for this model.
+
+```{r pbTmbosasep, tidy=FALSE, cache=TRUE}
+pbResLon <- pbRes[seq(3, nrow(pbRes), by=2),
+                  "residual"]
+pbResLat <- pbRes[seq(4, nrow(pbRes), by=2),
+                  "residual"]
+```
+
+Now let us visually assess the residuals.
+
+```{r pbTmbResidPlot, tidy=FALSE, cache=TRUE}
+layout(matrix(1:8, nrow=2))
+# General look at residuals
+plot(pbResLon, pch=19, cex=0.5,
+     ylab="Residuals - Lon", las=1)
+abline(h=0, col="hotpink")
+plot(pbResLat, pch=19, cex=0.5,
+     ylab="Residuals - Lat", las=1)
+abline(h=0, col="hotpink")
+
+# Check autocorrelation
+acf(pbResLon, main="", ylab="ACF - Lon")
+acf(pbResLat, main="", ylab="ACF - Lat")
+
+# Check normality
+qqnorm(pbResLon)
+qqline(pbResLon)
+qqnorm(pbResLat)
+qqline(pbResLat)
+hist(pbResLon, breaks=40, freq = FALSE, 
+     col="darkgrey", las=1,
+     main="", ylab="Prob. - Lon")
+curve(dnorm, -5, 5, add=TRUE, 
+      lwd=2, col="hotpink")
+hist(pbResLat, breaks=40, freq = FALSE, 
+     col="darkgrey", las=1,
+     main="", ylab="Prob. - Lat")
+curve(dnorm, -5, 5, add=TRUE, 
+      lwd=2, col="hotpink")
+```
+
+Overall the residuals look pretty good. There is no obvious patterns in the residuals through time. There is no autocorrelation. The only sign of a slight problem is that their appears to be some deviation from normality. We can see this from the qqplots, and the histograms. This could be due to a mismatch in the values assigned to the different quality categories, and in a real analysis it would be worth looking into this issue further.
+
+# References
+
+Auger-Méthé M, Derocher AE (2021) Argos and GPS data for a polar bear track, Dryad, Dataset, https://doi.org/10.5061/dryad.4qrfj6q96
+
+Auger-Méthé M, Newman K, Cole D, Empacher F, Gryba R, King AA, Leos-Barajas V, Mills Flemming J, Nielsen A, Petris G, Thomas L (2021) A guide to state–space modeling of ecological time series. Ecological Monographs 91(4):e01470.  https://doi.org/10.1002/ecm.1470
+
+Jonsen ID, Mills Flemming J, Myers RA (2005) Robust state-space modeling of animal movement data. Ecology 86:2874-2880
