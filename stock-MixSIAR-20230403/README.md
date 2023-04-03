@@ -1,7 +1,7 @@
 MixSIAR tutorial
 =============
 
-MixSIAR is an R package that helps you create and run Bayesian mixing models to analyze biotracer data (i.e. stable isotopes, fatty acids), following the [MixSIAR model framework](https://peerj.com/articles/5096/).
+[MixSIAR](http://brianstock.github.io/MixSIAR/index.html) is an R package that helps you create and run Bayesian mixing models to analyze biotracer data (i.e. stable isotopes, fatty acids), following the [MixSIAR model framework](https://peerj.com/articles/5096/).
 
 ## Install
 
