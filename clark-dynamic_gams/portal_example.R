@@ -15,17 +15,32 @@
 #    of ecological systems: long-term experiments." 
 #    Science 293.5530 (2001): 643-650.
 
+####                  Load libraries                               ####
 # This tutorial relies on the following packages:
-library(mvgam)           # Fit, interrogate and make forecast DGAMs
+library(mvgam)           # Fit, interrogate and forecast DGAMs
 library(dplyr)           # Tidy and flexible data manipulation
 library(ggplot2)         # Flexible plotting
 library(gratia)          # Graceful ggplot-based graphics for GAMs
 library(marginaleffects) # Compute interpretable model predictions
 library(tidybayes)       # Tidy manipulation / plots of posterior draws
 
-# A nice ggplot2 theme
-theme_set(theme_classic(base_size = 12, base_family = 'serif'))
+# A custom ggplot2 theme; feel free to ignore if you have your own plot
+# preferences
+theme_set(theme_classic(base_size = 12, base_family = 'serif') +
+            theme(axis.line.x.bottom = element_line(colour = "black",
+                                                    size = 1),
+                  axis.line.y.left = element_line(colour = "black",
+                                                  size = 1)))
+options(ggplot2.discrete.colour = c("#A25050",
+                                    "#8F2727",
+                                    'darkred',
+                                    "#630000"),
+        ggplot2.discrete.fill = c("#A25050",
+                                  "#8F2727",
+                                  'darkred',
+                                  "#630000"))
 
+####                  Inspect data                                 ####
 # Load the pre-prepared Portal rodent abundance data
 portal_ts <- read.csv('./data/portal_data.csv')
 
@@ -48,8 +63,8 @@ axis(3, at = seq(0,1, len = NCOL(portal_ts)),
 
 # The data are already in 'long' format, meaning each series x 
 # time observation has its own entry in the dataframe.
-# But mvgam needs a 'series' column that acts as a factor 
-# indicator for the time series. Add one using dplyr commands:
+# But {mvgam} needs a 'series' column that acts as a factor 
+# indicator for the time series. Add one using {dplyr} commands:
 portal_ts %>%
   dplyr::mutate(series = as.factor(species)) -> portal_ts
 dplyr::glimpse(portal_ts)
@@ -58,12 +73,12 @@ levels(portal_ts$series)
 # It is important that the number of levels matches the number of 
 # unique series in the data to ensure indexing across series works 
 # properly in the underlying modelling functions. For more information 
-# on how to format data for mvgam modelling, see:
+# on how to format data for {mvgam} modelling, see:
 # https://nicholasjclark.github.io/mvgam/articles/data_in_mvgam.html
 
 # Create a 'rel_abund' column that we can use as our outcome variable
 # in a Beta regression model (see ?mvgam_families for more information
-# on the kinds of observation models supported by mvgam)
+# on the kinds of observation models supported by {mvgam})
 portal_ts %>%
   
   # Group by unique time points
@@ -73,7 +88,7 @@ portal_ts %>%
   dplyr::mutate(total = sum(captures, na.rm = TRUE)) %>%
   dplyr::ungroup() %>%
   
-  # Calculate relative abundance; mvgam does not yet allow zero- or 
+  # Calculate relative abundance; {mvgam} does not yet allow zero- or 
   # one-inflated Beta observations, so we add small offsets for any
   # zeros and ones
   dplyr::mutate(rel_abund = 
@@ -100,7 +115,7 @@ portal_ts %>%
   ggplot(aes(x = mintemp, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(title = 'DM',
        y = "logit(relative abundance)", 
        x = 'Minimum temperature') +
@@ -110,7 +125,7 @@ portal_ts %>%
   ggplot(aes(x = ndvi_ma12, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(y = NULL, 
        x = 'NDVI moving average')
 
@@ -120,7 +135,7 @@ portal_ts %>%
   ggplot(aes(x = mintemp, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(title = 'PP',
        y = "logit(relative abundance)", 
        x = 'Minimum temperature') +
@@ -130,7 +145,7 @@ portal_ts %>%
   ggplot(aes(x = ndvi_ma12, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(y = NULL, 
        x = 'NDVI moving average')
 
@@ -140,7 +155,7 @@ portal_ts %>%
   ggplot(aes(x = mintemp, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(title = 'PB',
        y = "logit(relative abundance)",
        x = 'Minimum temperature') +
@@ -150,7 +165,7 @@ portal_ts %>%
   ggplot(aes(x = ndvi_ma12, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(y = NULL, 
        x = 'NDVI moving average')
 
@@ -160,7 +175,7 @@ portal_ts %>%
   ggplot(aes(x = mintemp, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(title = 'DO',
        y = "logit(relative abundance)", 
        x = 'Minimum temperature') +
@@ -170,7 +185,7 @@ portal_ts %>%
   ggplot(aes(x = ndvi_ma12, y = qlogis(rel_abund))) +
   geom_point() +
   geom_smooth(method = "gam", formula = y ~ s(x, k = 10),
-              col = 'darkred', fill = 'darkred') +
+              col = 'darkred', fill = "#A25050") +
   labs(y = NULL, 
        x = 'NDVI moving average')
 
@@ -182,12 +197,13 @@ data_train <- portal_ts %>%
 data_test <- portal_ts %>%
   dplyr::filter(time > 68)
 
+####                  Fit DGAMs                                   ####
 # An initial model will attempt to capture variation 
 # in species' responses to minimum temperature, using a 
-# hierarchical GAM (HGAM) with no dynamic component 
+# Hierarchical GAM (HGAM) with no dynamic component 
 # (see ?mgcv::s, ?mgcv::te, ?brms::gp and ?mvgam::dynamic for 
-# more information on the kinds of terms supported in mvgam
-# formulae):
+# more information on the kinds of terms supported in {mvgam}
+# formulae). This model takes ~ 20 seconds to fit, after compilation
 mod <- mvgam(rel_abund ~ 
                
                # Hierarchical intercepts capture variation in average
@@ -210,6 +226,10 @@ mod <- mvgam(rel_abund ~
              
              # Beta observations with independent precisions
              family = betar(),
+             
+             # cmdstanr is highly recommended over rstan as 
+             # it is much more up-to-date with the latest 
+             # features in the Stan universe
              backend = 'cmdstanr')
 
 # The model can be described mathematically as follows:
@@ -237,7 +257,8 @@ mod <- mvgam(rel_abund ~
 # f are the penalized smooth functions
 # b are thin plate spline basis functions
 # Ω are a set of prior precision matrices for the smooths
-# λ are the smoothing penalties that prevent overfitting
+# λ are the smoothing penalties that prevent overfitting; note that
+#   Normal(5, 30)[0, ] indicates a half-normal prior distribution
 # φ are species-level precision parameters
 
 # If you would like to see the underlying Stan code, which is fully
@@ -249,9 +270,15 @@ code(mod)
 summary(mod)
 
 # Sampling diagnostics (see ?mcmc_plot.mvgam for details on the types
-# of bayesplot plots that can be used with mvgam)
+# of {bayesplot} plots that can be used with {mvgam})
 mcmc_plot(mod, type = 'rhat_hist')
 mcmc_plot(mod, type = 'trace')
+
+# Pairs plots are also useful for diagnosing non-identifiabilities in
+# Bayesian models. See ?bayesplot::mcmc_pairs for details. Here a pairs plot
+# of the random effect mean and SD parameters shows no worrisome 'funnel' 
+# behaviour that can plague hierarchical models:
+pairs(mod, variable = c('mean(series)', 'sd(series)'))
 
 # Plot the hierarchical smooth components with the S3 'plot' function
 # (see ?plot.mvgam for more details)
@@ -261,12 +288,13 @@ plot(mod, type = 'smooths')
 plot(mod, type = 're')
 
 # More informative plots can be made using plot_predictions() from
-# the marginaleffects universe to visualise conditional effects 
+# the {marginaleffects} universe to visualise conditional effects 
 # on the outcome scale. See ?marginaleffects::plot_predictions 
 # for details, or visit: https://marginaleffects.com/
 plot_predictions(mod, 
                  condition = c('mintemp', 'series', 'series'),
-                 points = 0.5) +
+                 points = 0.5,
+                 rug = TRUE) +
   theme(legend.position = 'none') +
   labs(y = 'Relative abundance', x = 'Minimum temperature')
 
@@ -278,13 +306,21 @@ plot_predictions(mod,
   theme(legend.position = 'none') +
   labs(y = 'logit(relative abundance)', x = 'Minimum temperature')
 
+# The average (marginal) effect of mintemp can be plotted for each
+# series using the plot_slopes() function:
+plot_slopes(mod, variable = 'mintemp',
+            condition = c('series', 'series'),
+            type = 'link') +
+  theme(legend.position = 'none') +
+  labs(y = 'logit(relative abundance)', x = 'Series')
+
 # Predictions are your best tool when trying to interpret / report
 # GAMs (or any regression-based model for that matter). As an 
 # illustration, we can compute how much higher we would expect 
 # relative abundance to be if the scaled mintemp variable was 
 # high (1.75) vs low (-1.75) for each species. 
 # We can take full advantage of the comparisons function 
-# from the marginaleffects package to do this 
+# from the {marginaleffects} package to do this 
 # (see ?marginaleffects::comparisons for details)
 post_contrasts <- comparisons(mod,
                               
@@ -306,7 +342,7 @@ post_contrasts %>%
   ggplot(aes(x = draw)) +
   geom_vline(xintercept = 0, linetype = 'dashed') +
   
-  # Use the stat_halfeye function from tidybayes for a nice visual
+  # Use the stat_halfeye function from {tidybayes} for a nice visual
   stat_halfeye(fill = "#C79999", alpha = 0.75) +
   facet_wrap(~ series, scales = 'free') +
   labs(x = "Change in relative abundance if mintemp is high vs low",
@@ -321,7 +357,11 @@ plot(mod, type = 'forecast', series = 2)
 plot(mod, type = 'forecast', series = 3)
 plot(mod, type = 'forecast', series = 4)
 
-# Randomized Quantile residuals provide model diagnostics
+# Randomized Quantile (Dunn-Smyth) residuals provide model diagnostics
+# Dunn, Peter K., and Gordon K. Smyth. 
+#    "Randomized quantile residuals." 
+#    Journal of Computational and graphical statistics 5.3 
+#    (1996): 236-244.
 plot(mod, type = 'residuals', series = 1)
 plot(mod, type = 'residuals', series = 2)
 plot(mod, type = 'residuals', series = 3)
@@ -331,7 +371,7 @@ plot(mod, type = 'residuals', series = 4)
 # It makes sense to think about interactions between temperature
 # and NDVI in this system, as the green-up period happens at 
 # certain times of year. We can incorporate this knowledge 
-# into a more complex HGAM (takes ~ 50 seconds to fit)
+# into a more complex HGAM (takes ~ 60 seconds to fit)
 mod2 <- mvgam(rel_abund ~ 
                
                # Hierarchical intercepts capture variation in average
@@ -373,7 +413,7 @@ mod2 <- mvgam(rel_abund ~
 #                         φ ~ Gamma(0.01, 0.01)
 
 # The model summary now has many effects in it; 
-# suppress the uninterpretable spline coefficients
+# suppress the un-interpretable spline coefficients
 summary(mod2, include_betas = FALSE)
 
 # Sampling diagnostics
@@ -382,9 +422,8 @@ mcmc_plot(mod2, type = 'rhat_hist')
 # The hierarchical smooth components are now a series of bivariate
 # nonlinear interaction smooths
 plot(mod2, type = 'smooths')
-layout(1)
 
-# gratia makes these a bit easier to visualise
+# {gratia} makes these a bit easier to visualise
 gratia::draw(mod2$mgcv_model)
 
 # But as before, we can't get a good handle on what 
@@ -412,9 +451,9 @@ plot_predictions(mod2,
                  type = 'link') +
   labs(y = 'logit(relative abundance)', x = 'NDVI moving average')
 
-# In-sample fit metrics slightly prefer the more complex model,
-# but there is large uncertainty (see ?loo::loo for details on 
-# how PSIS-LOO is calculated)
+# In-sample fit metrics using approximate leave-one-out cross-validation
+# slightly prefer the more complex model, but there is large 
+# uncertainty (see ?loo::loo for details on  how PSIS-LOO is calculated)
 loo(mod)$estimates
 loo(mod2)$estimates
 loo_compare(mod, mod2)
@@ -457,7 +496,7 @@ plot(mod2, type = 'residuals', series = 4)
 # formula is empty, but we could incorporate other predictors here
 # if we thought they might influence our ability to take accurate
 # measurements (such as storms, unusually cold nights, trap failures
-# etc...; takes ~ 2 minutes to fit)
+# etc...; takes ~ 1 minute to fit after compilation)
 mod3 <- mvgam(rel_abund ~ -1,
                 
               # GAM components now moved to the latent process model
@@ -481,7 +520,7 @@ mod3 <- mvgam(rel_abund ~ -1,
               
               # Independent latent AR1 processes; see ?mvgam_trends
               # for details on the types of dynamic processes currently
-              # supported
+              # supported by {mvgam}
               trend_model = 'AR1',
               
               # Placing more informative priors on the AR1 
@@ -524,7 +563,7 @@ mod3 <- mvgam(rel_abund ~ -1,
 #              σ_population ~ Student-t(3, 0, 2.5)[0, ]
 #                  β_smooth ~ MVNormal(0, (Ω ∗ λ)^−1)
 #                         λ ~ Normal(5, 30)[0, ]
-#                       AR1 ~ Normal(0.5, 0.25)
+#                       AR1 ~ Normal(0.5, 0.25)[-1, 1]
 #                 σ_process ~ Exponential(1)
 #                         φ ~ Gamma(0.01, 0.01)
 # where: 
@@ -596,7 +635,7 @@ ppc(mod3, type = 'density', series = 4)
 layout(1)
 
 # Evaluating forecasts using proper scoring rules is an important step
-# to compare different models. mvgam can score objects of class
+# to compare different models. {mvgam} can score objects of class
 # mvgam_forecast. See ?forecast.mvgam and ?score.mvgam_forecast for
 # more details
 fc <- forecast(mod3, newdata = data_test)
@@ -616,7 +655,7 @@ energy_fc$all_series
 # while a positive value means the non-dynamic model is better
 par(mar = c(3.5, 3.5, 2, 2),
     mgp = c(2, 0.5, 0))
-diff_scores <- energy_fc $all_series$score -
+diff_scores <- energy_fc$all_series$score -
   score(forecast(mod2), score = 'energy')$all_series$score
 plot(diff_scores, pch = 16, col = 'darkred', 
      ylim = c(-1*max(abs(diff_scores), na.rm = TRUE),
@@ -637,7 +676,7 @@ abline(h = 0, lty = 'dashed', lwd = 2)
 # if you are interested in capturing dependencies in collections 
 # of ecological time series. 
 
-# See more about multivariate dynamics in mvgam here: 
+# See more about multivariate dynamics in {mvgam} here: 
 # https://nicholasjclark.github.io/mvgam/articles/trend_formulas.html
 # and here: 
 # https://nicholasjclark.github.io/physalia-forecasting-course/day4/tutorial_4_physalia
@@ -666,6 +705,7 @@ mod4 <- mvgam(rel_abund ~
               use_lv = TRUE,
               n_lv = 2,
               
+              # Usual data and response distribution
               data = data_train,
               newdata = data_test,
               family = betar(),
@@ -720,7 +760,7 @@ plot(mod4, type = 'forecast', series = 4)
 # a VAR1 for the dynamics rather than independent AR1 processes. This 
 # can capture lagged cross-dependence among the process models, and can 
 # also capture correlated process errors
-# Takes ~ 9 minutes to fit, after compilation
+# Takes ~ 8 minutes to fit, after compilation
 mod5 <- mvgam(rel_abund ~ -1,
               
               # GAM components now moved to the latent process model
@@ -750,6 +790,7 @@ mod5 <- mvgam(rel_abund ~ -1,
               # LKJ prior on the error correlations)
               priors = prior(exponential(1), class = sigma),
               
+              # Usual data and response arguments
               data = data_train,
               newdata = data_test,
               family = betar(),
@@ -792,12 +833,16 @@ mcmc_plot(mod5,
 
 # Comparing energy scores for this model and the
 # AR1 model (without multispecies dependence) suggests the 
-# simpler model does better in this validation exercise. 
-# Likely because there was a considerable regime 
-# shift taking place during the forecast horizon, leading to different 
-# dynamics compared to what was observed in the training data
-diff_scores <- score(forecast(mod5), score = 'energy')$all_series$score -
-  score(forecast(mod3), score = 'energy')$all_series$score
+# simpler model does better in some of the validation timepoints, and
+# the differences in scores tend to be very small.
+# This is ikely because there was a considerable regime 
+# shift happening during the forecast horizon, leading to different 
+# dynamics compared to what was observed in the training data and 
+# perhaps favouring simpler models
+diff_scores <- score(forecast(mod5), 
+                     score = 'energy')$all_series$score -
+  score(forecast(mod3), 
+        score = 'energy')$all_series$score
 plot(diff_scores, pch = 16, col = 'darkred', 
      ylim = c(-1*max(abs(diff_scores), na.rm = TRUE),
               max(abs(diff_scores), na.rm = TRUE)),
