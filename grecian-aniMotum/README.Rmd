@@ -1,0 +1,19 @@
+---
+output:
+  md_document:
+    variant: markdown_github
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-"
+)
+```
+
+## Applications of the {aniMotum} R package for quality control, behavioural estimation and simulation of animal movement data
+
+Animal telemetry and bio-logging data are essential tools that allow us to understand the movements, behaviour, social interactions and foraging ecology of mobile or cryptic species. However, the data collected by telemetry and bio-logging devices are subject to issues such as irregularly timed intervals and location measurement errors. State-space models (SSMs) are powerful tools for dealing with these issues but can be difficult for non-specialists to implement. In this talk, Dr. James Grecian will introduce `aniMotum`, an R package for fitting SSMs to animal movement data. The aim of `aniMotum` is to provide a user friendly approach for (1) simple and fast quality control of error-prone animal location data; and (2) for inference of changes in movement behaviour along animal movement paths. James will first discuss different types of bio-logging data and their sources of measurement error, before outlining how aniMotum can help address these case studies. Attendees should leave with a basic understanding of how they could use `aniMotum` in their own animal movement analysis workflows.
