@@ -65,8 +65,6 @@ During this practical we will:
 4. Fit a move persistence model to estimate behaviour
 5. Extract the regularised data
 6. Manual mapping
-7. Simulate from the model
-8. Re-route movement paths
 
 This practical will be based on the {tidyverse} style of R coding. You will become familiar with using pipes `|>` to perform data manipulations, using `ggplot` to generate publication quality figures, and using the {sf} package to handle spatial data.
 
