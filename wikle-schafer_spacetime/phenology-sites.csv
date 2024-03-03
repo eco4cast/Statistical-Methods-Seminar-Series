@@ -1,0 +1,48 @@
+field_domain_id,field_site_id,field_site_name,phenocam_vegetation,field_latitude,field_longitude,field_geodetic_datum,field_utm_northing,field_utm_easting
+D16,ABBY,Abby Road NEON,evergreen needleleaf,45.762439,-122.33032,WGS84,5067870.429,552075.5426
+D18,BARR,Utqiaġvik NEON,tundra,71.28241,-156.61936,WGS84,7910571.986,585246.12990000006
+D01,BART,Bartlett Experimental Forest NEON,deciduous broadleaf,44.063889,-71.287375,WGS84,4881511.552,316812.1595
+D02,BLAN,Blandy Experimental Farm NEON,deciduous broadleaf,39.033698,-78.041788,WGS84,4327545.884,753379.5421
+D19,BONA,Caribou-Poker Creeks Research Watershed NEON,evergreen needleleaf,65.15401,-147.50258,WGS84,7225712.648,476436.7395
+D11,CLBJ,Lyndon B. Johnson National Grassland NEON,deciduous broadleaf,33.40123,-97.57,WGS84,3696682.441,632982.2183
+D10,CPER,Central Plains Experimental Range NEON,grassland,40.815536,-104.74559000000001,WGS84,4518311.062,521454.7706
+D09,DCFS,Dakota Coteau Field Site NEON,grassland,47.16165,-99.10656,WGS84,5223133.117,491923.484
+D19,DEJU,Delta Junction NEON,tundra,63.88112,-145.75136,WGS84,7084367.216,561330.0608
+D08,DELA,Dead Lake NEON,deciduous broadleaf,32.541727,-87.803877,WGS84,3600769.463,424518.299
+D03,DSNY,Disney Wilderness Preserve NEON,grassland,28.12505,-81.43619,WGS84,3111130.689,457161.0924
+D07,GRSM,Great Smoky Mountains National Park NEON,deciduous broadleaf,35.68896,-83.50195,WGS84,3952335.289,273599.8765
+D04,GUAN,Guanica Forest NEON,evergreen broadleaf,17.96955,-66.8687,WGS84,1988112.213,725706.1285
+D01,HARV,Harvard Forest & Quabbin Watershed NEON,deciduous broadleaf,42.53691,-72.17265,WGS84,4713265.041,732183.1938
+D19,HEAL,Healy NEON,tundra,63.875798,-149.21335,WGS84,7085047.865,391276.5986
+D03,JERC,The Jones Center At Ichauway NEON,evergreen needleleaf,31.194839,-84.468623,WGS84,3453956.371,741205.7224
+D14,JORN,Jornada Experimental Range NEON,grassland,32.590694,-106.84254,WGS84,3607409.16,327074.62
+D06,KONA,Konza Prairie Agroecosystem NEON,agriculture,39.110446,-96.612935,WGS84,4331745.281,706389.4538
+D06,KONZ,Konza Prairie Biological Station NEON,grassland,39.100774,-96.563075,WGS84,4330786.534,710729.798
+D04,LAJA,Lajas Experimental Station NEON,agriculture,18.021261,-67.076889,WGS84,1993593.871,703591.1281
+D08,LENO,Lenoir Landing NEON,deciduous broadleaf,31.853861,-88.161181,WGS84,3524827.167,390139.6172
+D07,MLBS,Mountain Lake Biological Station NEON,deciduous broadleaf,37.378314,-80.524847,WGS84,4136943.44,542067.64
+D13,MOAB,Moab NEON,grassland,38.248283,-109.38827,WGS84,4234596.509,641031.4708
+D13,NIWO,Niwot Ridge NEON,tundra,40.05425,-105.58237,WGS84,4433940.917,450328.2848
+D09,NOGP,Northern Great Plains Research Laboratory NEON,grassland,46.76972,-100.91535,WGS84,5181355.713,353761.6032
+D11,OAES,Marvin Klemme Range Research Station NEON,grassland,35.410599,-99.058779,WGS84,3918579.067,494662.2504
+D15,ONAQ,Onaqui NEON,shrubland,40.177599,-112.45245,WGS84,4448479.606,376339.6859
+D07,ORNL,Oak Ridge NEON,deciduous broadleaf,35.964128,-84.282588,WGS84,3983383.087,745052.4354
+D03,OSBS,Ordway-Swisher Biological Station NEON,evergreen needleleaf,29.689282,-81.993431,WGS84,3284767.489,403886.418
+D20,PUUM,Pu'u Maka'ala Natural Area Reserve NEON,evergreen broadleaf,19.55309,-155.31731,WGS84,2163673.63,256868.7191
+D10,RMNP,Rocky Mountains NEON,evergreen needleleaf,40.275903,-105.54596,WGS84,4458524.203,453588.4118
+D02,SCBI,Smithsonian Conservation Biology Institute NEON,deciduous broadleaf,38.892925,-78.139494,WGS84,4308784.078,748090.6473
+D02,SERC,Smithsonian Environmental Research Center NEON,deciduous broadleaf,38.890131,-76.560014,WGS84,4305735.3,364703.6624
+D17,SJER,San Joaquin Experimental Range NEON,evergreen needleleaf,37.10878,-119.73228,WGS84,4110433.937,257213.9752
+D17,SOAP,Soaproot Saddle NEON,evergreen needleleaf,37.03337,-119.26219,WGS84,4100967.253,298792.741
+D14,SRER,Santa Rita Experimental Range NEON,shrubland,31.91068,-110.83549,WGS84,3530547.118,515553.9031
+D05,STEI,Steigerwaldt-Chequamegon NEON,deciduous broadleaf,45.50894,-89.58637,WGS84,5042743.852,297968.6864
+D10,STER,North Sterling NEON,agriculture,40.461894,-103.02929,WGS84,4480891.098,667084.9559
+D08,TALL,Talladega National Forest NEON,evergreen needleleaf,32.95047,-87.393259,WGS84,3645863.573,463241.7192
+D17,TEAK,Lower Teakettle NEON,evergreen needleleaf,37.00583,-119.00602,WGS84,4097400.183,321515.7352
+D18,TOOL,Toolik Field Station NEON,tundra,68.66109,-149.37047,WGS84,7618427.659,403757.147
+D05,TREE,Treehaven NEON,deciduous broadleaf,45.49369,-89.58571,WGS84,5041047.894,297965.3164
+D06,UKFS,University of Kansas Field Station NEON,deciduous broadleaf,39.040431,-95.19215,WGS84,4323549.848,310276.2976
+D05,UNDE,University of Notre Dame Environmental Research Center NEON,deciduous broadleaf,46.23391,-89.537254,WGS84,5123162.886,304366.9502
+D09,WOOD,Chase Lake National Wildlife Refuge NEON,grassland,47.1282,-99.241334,WGS84,5219442.039,481694.72120000003
+D16,WREF,Wind River Experimental Forest NEON,evergreen needleleaf,45.82049,-121.95191,WGS84,5074636.87,581417.8024
+D12,YELL,Yellowstone National Park NEON,evergreen needleleaf,44.95348,-110.53914,WGS84,4977885.935,536352.1992

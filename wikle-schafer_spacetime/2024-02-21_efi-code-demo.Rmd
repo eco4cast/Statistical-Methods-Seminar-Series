@@ -1,0 +1,426 @@
+---
+title: "Spatio-temporal Modeling"
+author: "Toryn L. J. Schafer and Christopher K. Wikle"
+date: "2024-03-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+## Libraries
+
+```{r}
+library(RColorBrewer)
+library(gganimate)
+library(ggmap)
+library(gstat)
+library(mgcv)
+library(sp)
+library(spacetime)
+library(tidyverse)
+```
+
+## NEON Phenology Data
+
+The following demonstrates spatio-temporal visualization using phenology data from the EFI NEON forecasting challenge [github page](https://github.com/eco4cast/neon4cast-targets/).
+
+```{r}
+pheno_sites <- read_csv("phenology-sites.csv")
+pheno_dat <- read_csv("phenology-targets.csv.gz")
+```
+
+First, we will explore the time series of the 90th percentile of the green chromatic coordinate, gcc_90.
+
+```{r}
+set.seed(20240304)
+
+pheno_dat |> 
+  ## subset to gcc_90 and 6 random site IDs
+  filter(variable == "gcc_90",
+         site_id %in% sample(unique(site_id), 6)) |> 
+  ggplot(aes(x = datetime, y = observation))+
+  geom_point()+
+  scale_x_date(name = "")+
+  scale_y_continuous(name = "Green Chromatic Coordinate")+
+  facet_wrap(vars(site_id)) +
+  theme(panel.spacing = unit(1, "lines"))+
+  theme_bw()
+```
+
+Next, let's plot the locations of the field sites. The `borders()` function is handy for quick reference to geographic border databases.
+
+```{r}
+ggplot(pheno_sites, aes(x = field_longitude, y = field_latitude))+
+  borders("world", xlim = c(-160, -80), ylim = c(15, 75))+
+  geom_point()+
+  scale_x_continuous("Longitude")+
+  scale_y_continuous("Latitude")+
+  coord_quickmap()
+```
+
+Let's display information about the gcc_90 in the continental US on the median date, `r median(pheno_dat$datetime)`. In this case, we need to join the phenology measurements to the site information by the site name. We create a common set of breaks for `ggplot` to create a combined color and size legend.
+
+```{r}
+pheno_full <- pheno_dat |> 
+  filter(variable == "gcc_90") |> 
+  left_join(pheno_sites, by = c("site_id" = "field_site_id")) |> 
+  mutate(year = year(datetime),
+         month = month(datetime))
+
+gcc_breaks <- quantile(pheno_full$observation, 
+                       probs = 1:9/10, na.rm = TRUE) |> 
+  unname() |> 
+  round(3)
+
+pheno_full |>
+  filter(datetime == median(datetime)) |> 
+  ggplot()+
+  borders("state")+
+  geom_point(aes(x = field_longitude, y = field_latitude, 
+                 col = observation, size = observation))+
+  scale_x_continuous("Longitude")+
+  scale_y_continuous("Latitude")+
+  scale_color_viridis_c(name = "gcc_90", 
+                        breaks = gcc_breaks)+
+  scale_size_continuous(name = "gcc_90", 
+                        breaks = gcc_breaks)+
+  coord_quickmap(xlim = c(-130,-70), ylim = c(25, 50))+
+  guides(color= guide_legend(), size=guide_legend())+
+  ggtitle(paste("Green Chromatic Coordinate on", median(pheno_full$datetime)))
+
+```
+
+We can easily use the previous plot as a base for an animation with the `gganimate` package. Instead of filtering to a specific day, we will specify the day as the frame. We will subset to April - October 2023. Note that gganimate interpolates between frames ("tweening").
+
+```{r animate}
+pheno_sub <- pheno_full |> 
+  filter(year == 2023,
+         month %in% 4:10)
+
+gg_anim <- ggplot(pheno_sub)+
+  borders("state")+
+  geom_point(aes(x = field_longitude, y = field_latitude, 
+                 col = observation, size = observation))+
+  scale_x_continuous("Longitude")+
+  scale_y_continuous("Latitude")+
+  scale_color_viridis_c(name = "gcc_90", 
+                        breaks = gcc_breaks)+
+  scale_size_continuous(name = "gcc_90", 
+                        breaks = gcc_breaks)+
+  coord_quickmap(xlim = c(-130,-70), ylim = c(25, 50))+
+  guides(color= guide_legend(), size=guide_legend())+
+  ## layer specifying animation transition
+  transition_time(datetime)+ 
+  ## title using label variable
+  ggtitle("Green Chromatic Coordinate on {frame_time}")
+
+```
+
+
+```{r, eval = FALSE}
+animate(gg_anim, renderer = gifski_renderer())
+
+## I prefer to have all the frames, but note this takes several minutes
+days <- length(unique(pheno_sub$datetime))
+
+animate(gg_anim, nframes = 2*days, renderer = gifski_renderer())
+
+anim_save("pheno.gif")
+```
+
+Now let's look at averages over space and time. For the spatial average, we plot after 2017 when most sites begin sampling.
+
+```{r avg_space}
+pheno_space <- pheno_full |> 
+  group_by(site_id) |> 
+  summarize(field_longitude = unique(field_longitude),
+            field_latitude = unique(field_latitude),
+            mean = mean(observation, na.rm = TRUE),
+            n = sum(!is.na(observation))) 
+
+ggplot(pheno_space)+
+  geom_point(aes(x = field_longitude, y = mean))+
+  scale_x_continuous("Longitude")+
+  scale_y_continuous("Green Chromatic Coordinate")
+
+ggplot(pheno_space)+
+  geom_point(aes(x = field_latitude, y = mean))+
+  scale_x_continuous("Latitude")+
+  scale_y_continuous("Green Chromatic Coordinate")
+```
+
+```{r avg_time}
+pheno_time <- pheno_full |> 
+  group_by(datetime) |> 
+  summarize(year = unique(year),
+            mean = mean(observation, na.rm = TRUE),
+            n = sum(!is.na(observation))) |>
+  filter(n > 0) 
+
+ggplot(pheno_full, aes(x = yday(datetime)))+
+  geom_line(aes(y = observation), 
+            alpha = 0.25)+
+  geom_line(aes(y = mean), 
+             data = pheno_time, col = "blue")+
+  scale_x_continuous(name = "Day")+
+  scale_y_continuous("Green Chromatic Coordinate")+
+  facet_wrap(vars(year))
+```
+
+
+
+## NOAA Maximum Temperature
+
+### Variograms
+
+First, we will load the NOAA maximum temperature dataset for July 1993. It may be helpful to look at the help page for the `STFDF` class for more information on indexing. The empirical variogram is fit to the residuals of the linear model with a fixed latitude effect.
+
+```{r}
+temp_dat <- readRDS("july-max-temp.RDS")
+
+class(temp_dat)
+dim(temp_dat) ## this is the dataframe
+head(temp_dat[1,])
+bbox(temp_dat) ## spatial extent
+
+emp_vgm <- variogram(object = temp ~ 1 + lat, # fixed effect component
+                data = temp_dat,      # July data
+                width = 80,         # spatial bin (80 km)
+                cutoff = 1000,      # consider pts < 1000 km apart
+                tlags = 0.01:6.01)  # 0 days to 6 days
+```
+
+Now, we will fit a separable ST variogram. The main assumption for separable models is the spatio-temporal variability is the product of independent spatial  and temporal covariance functions. We specify an exponential model for space and time and several initial values. The range is set to approximately 10\% of the domain. The sills are set to a value on the same order of magnitude of the variability in the temperature. 
+
+```{r}
+## Variance across space and time
+var(temp_dat[["temp"]], na.rm = TRUE)
+
+## specify the model structure
+
+sep_vgm <- vgmST(
+  stModel = "separable",
+  space = vgm(
+    psill = 10, # partial sill
+    model = "Exp",
+    range = 400,
+    nugget = 0.1
+  ),
+  time = vgm(
+    psill = 10,
+    model = "Exp",
+    range = 1,
+    nugget = 0.1
+  ),
+  sill = 20 # joint sill
+) 
+
+sep_vgm  <- fit.StVariogram(emp_vgm, sep_vgm)
+sep_vgm
+```
+
+Another ST variogram model available is "metric" for a joint ST variogram. We need to specify a scaling factor, `stAni`, to relate the spatial dimension to the temporal, i.e., number of space units equivalent to one time unit. We initially choose 150 as our spatial domain is on the order of hundreds of km while time is on the order of days.
+
+```{r}
+metric_vgm <- vgmST(
+  stModel = "metric",
+  joint = vgm(100, "Exp",
+              400, nugget =  0.1),
+  sill =  10,
+  stAni =  150 # spatio-temporal scaling
+)
+
+metric_vgm <- fit.StVariogram(emp_vgm, metric_vgm)
+metric_vgm
+```
+
+We can compare the variograms by their mean squared error which is stored in the attribute MSE. More information about convergence is in the attribute optim.output.
+
+```{r, eval= FALSE}
+attr(sep_vgm, "MSE")
+attr(metric_vgm, "MSE")
+```
+
+The separable model has an MSE of `r round(attr(sep_vgm, "MSE"),2)` while the metric model has an MSE of `r round(attr(metric_vgm, "MSE"),2)`.
+
+Now we can plot the variograms to compare. We will do the `r class(sep_vgm)[1]` method plotting. Contour plots can be made by manipulating the fitted objects and using `ggplot2`.
+
+```{r}
+color_pal <- rev(colorRampPalette(brewer.pal(9, "YlOrRd"))(16)) # color palette
+
+plot(emp_vgm, list(sep_vgm, metric_vgm), col = color_pal,
+     main = "ST gridded variogram")
+
+## map argument
+plot(emp_vgm, list(sep_vgm, metric_vgm), map = FALSE,
+     main = "Spatial variogram at various lags")
+
+## all argument
+plot(emp_vgm, list(sep_vgm, metric_vgm), col = color_pal,
+     main = "ST gridded variogram", all = TRUE)
+
+## wireframe argument
+plot(emp_vgm, list(sep_vgm, metric_vgm),
+     main = "ST gridded variogram", wireframe = TRUE)
+```
+
+### Kriging
+
+Now that we have calculated a covariogram (covariance), we can proceed with prediction using kriging. First, we will construct the new object to predict on corresponding to July 14 1993 by building up from the spatial and temporal grid.
+
+```{r}
+# space-time grid
+spat_pred_grid <- expand.grid(
+  lon = seq(-100, -80, length = 20),
+  lat = seq(32, 46, length = 20)) |> 
+  SpatialPoints(proj4string = temp_dat@sp@proj4string) # match CRS
+
+gridded(spat_pred_grid) <- TRUE
+
+# temporal grid
+time_pred_grid <- as.Date("1993-07-01") + # July 1, 1993
+  seq(3, 28, length = 6) # every 3 days
+
+plot(spat_pred_grid, axes = TRUE, 
+     main = "Spatial Prediction Grid")
+```
+
+Now we create a spatio-temporal full space-time grid object.
+
+```{r}
+st_pred <- STF(sp = spat_pred_grid,
+               time = time_pred_grid)
+class(st_pred)
+```
+
+First, we illustrate kriging by predicting max temperature on July 14, 1993 from a model without July 14, 1993. Also, many locations have missing data and we need to remove it before using the kriging function, `krigeST`. When we remove missing locations, we no longer have the full grid so we coerce to an object for unstructured data, `STIDF`. July 14 corresponds to index 14 in the time dimension. This may take several minutes.
+
+```{r}
+summary(temp_dat[,14]$temp) # temp_dat[,14,"temp"]
+
+temp_dat_no14 <- as(temp_dat[,-14], "STIDF")
+temp_dat_no14 <- subset(temp_dat_no14, !is.na(temp_dat_no14$temp))
+
+temp_kriged <- krigeST(temp ~ 1 + lat,
+                       data = temp_dat_no14,
+                       newdata = st_pred,
+                       modelList = sep_vgm,
+                       computeVar = TRUE)
+```
+Now we can plot the predictions with the `stplot` method.
+
+```{r}
+color_pal <-
+  rev(colorRampPalette(brewer.pal(11, "Spectral"))(16)) 
+
+stplot(
+    temp_kriged,
+    main = expression(paste("Predictions (", degree ~ F, ")")),
+    layout = c(3, 2),
+    col.regions = color_pal
+  )
+
+temp_kriged$se <- sqrt(temp_kriged$var1.var) 
+
+stplot(
+  temp_kriged[, , "se"],
+  main = expression(paste("Standard Errors (", degree ~ F, ")")),
+  layout = c(3, 2),
+  col.regions = color_pal
+)
+```
+
+
+## BBS Count Data
+
+Lastly, we will demonstrate fitting a non-Gaussian spatio-temporal GAM on count data from BBS for Carolina wrens in Missouri. 
+
+```{r}
+bbs_dat <- readRDS("carolinawren-bbs.RDS")
+
+```
+
+
+We will specify the formula of the GAM where the response is the count and the features are a tensor of basis functions over the spatial and temporal dimensions. We specify 50 spatial bases and 10 temporal bases and a Negative Binomial likelihood. 
+
+```{r}
+f <- cnt ~ te(lon, lat, t, #inputs over which to smooth 
+              bs =c("tp","cr"), #types of bases 
+              k=c(50,10), #knot count in each dimension 
+              d=c(2,1)) #(s,t) basis dimension
+
+bbs_fit <- gam(f, family = nb(link= "log"), 
+               data = bbs_dat)
+
+bbs_fit
+```
+
+Let's make some more plots! We will predict the intensity field at unobserved locations defined on a grid.
+
+```{r}
+bbs_lon <- bbs_dat$lon
+bbs_lat <- bbs_dat$lat
+
+## Construct space-time grid
+
+grid_locs <-
+  expand.grid(
+    lon = seq(min(bbs_lon) - 0.2, max(bbs_lon) + 0.2, length.out = 80),
+    lat = seq(min(bbs_lat) - 0.2, max(bbs_lat) + 0.2, length.out = 80),
+    t = 1:max(bbs_dat$t)
+  )
+
+X <- predict(bbs_fit, grid_locs, se.fit =TRUE)
+```
+
+```{r}
+## Put data to plot into data frame
+
+grid_locs$pred <- X$fit
+grid_locs$se <- X$se.fit
+
+## Plot predictions and overlay observations
+g1 <- ggplot() +
+  geom_raster(data = grid_locs,
+              aes(lon, lat, fill = pmin(pmax(pred,-1), 5))) +
+  facet_wrap(vars(t), nrow = 3, ncol = 7) +
+  geom_point(
+    data = filter(bbs_dat,!is.na(cnt)),
+    aes(lon, lat),
+    colour = "black",
+    size = 3
+  ) +
+  geom_point(
+    data = filter(bbs_dat,!is.na(cnt)),
+    aes(lon, lat, colour = log(cnt)),
+    size = 2
+  ) +
+  scale_fill_distiller(palette = "Spectral",
+                       limits = c(-1, 5),
+             name = expression(log(Y[t]))) +
+  scale_color_distiller(palette = "Spectral",
+                        limits = c(-1, 5),
+                        guide = "none") +
+  theme_bw()
+
+g1
+
+## Plot predictionstandarderrors
+g2 <-
+  ggplot() +
+  geom_raster(data = grid_locs, aes(lon, lat, fill = pmin(se, 2.5))) +
+  facet_wrap(vars(t), nrow = 3, ncol = 7) +
+  scale_fill_distiller(palette = "BrBG",
+             limits = c(0, 2.5),
+             name = expression(s.e.)) +
+  theme_bw()
+
+g2
+```
+
+
+
