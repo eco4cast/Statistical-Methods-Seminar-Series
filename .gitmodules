@@ -1,0 +1,3 @@
+[submodule "Micheletti_SpaDES"]
+	path = Micheletti_SpaDES
+	url = git@github.com:tati-micheletti/Micheletti_SpaDES.git
