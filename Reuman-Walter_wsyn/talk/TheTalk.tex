@@ -1,0 +1,1102 @@
+\documentclass{beamer}
+
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+\usetheme{Darmstadt}
+\usefonttheme[onlylarge]{structurebold}
+\setbeamerfont*{frametitle}{size=\normalsize,series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows,shapes}
+\usetikzlibrary{calc,decorations.pathmorphing,patterns}
+\tikzstyle{block}=[draw opacity=0.7,line width=1.4cm]
+
+\definecolor{lightpink}{rgb}{.96,.86,.86}
+\definecolor{lightgreen}{rgb}{.86,.96,.86}
+
+%I got the next chunk here https://tex.stackexchange.com/questions/109159/crossing-out-whole-slide-with-latex-beamer as a 
+%solution for putting a big x across the whole slide
+\makeatletter
+\pgfdeclaredecoration{penciline}{initial}{
+    \state{initial}[width=+\pgfdecoratedinputsegmentremainingdistance,auto corner on length=1mm,]{
+        \pgfpathcurveto%
+        {% From
+            \pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}
+                            {\pgfdecorationsegmentamplitude}
+        }
+        {%  Control 1
+        \pgfmathrand
+        \pgfpointadd{\pgfqpoint{\pgfdecoratedinputsegmentremainingdistance}{10pt}}
+                        {\pgfqpoint{-\pgfdecorationsegmentaspect\pgfdecoratedinputsegmentremainingdistance}%
+                                        {\pgfmathresult\pgfdecorationsegmentamplitude}
+                        }
+        }
+        {%TO 
+        \pgfpointadd{\pgfpointdecoratedinputsegmentlast}{\pgfpoint{8pt}{5pt}}
+        }
+    }
+    \state{final}{}
+}
+
+\newcommand{\var}{{\operatorname{var}}}
+\newcommand{\cov}{{\operatorname{cov}}}
+\newcommand{\cor}{{\operatorname{cor}}}
+\newcommand{\E}{{\operatorname{E}}}
+\newcommand{\mean}{{\operatorname{mean}}}
+\newcommand{\cosp}{{\operatorname{cosp}}}
+
+\title[Wavelet approaches to synchrony]
+{
+wsyn: Wavelet approaches to studies of synchrony in ecology
+}
+
+\author[Reuman]
+{
+D.C.~Reuman\inst{1} \\
+J.A.~Walter\inst{2}
+}
+
+\institute
+{
+\inst{1}
+University of Kansas \\
+\inst{2}
+UC Davis and University of Virginia
+}
+
+\date[KPT 2003]
+{
+May, 2024
+}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\section{Introduction}
+
+\subsection{Definition of synchrony}
+
+\begin{frame}
+\frametitle{This talk is about spatial synchrony}
+\begin{itemize}
+\item Spatial (aka, population or metapopuation) synchrony is when populations of the same species in different places fluctuate in related/correlated ways
+\item Below left: more synchronous
+\item Below right: less/not synchronous (aka, ``asynchronous'')
+\end{itemize}
+\includegraphics[width= 0.49\textwidth]{figures/Sync.png}
+\includegraphics[width= 0.49\textwidth]{figures/Asyn.png}
+\end{frame}
+
+\begin{frame}
+\frametitle{Why study synchrony? Ubiquitous. Also, importance of synchrony for aggregates:}
+\includegraphics[width= 0.49\textwidth]{figures/Sync.png}
+\includegraphics[width= 0.49\textwidth]{figures/Asyn.png}\\
+\includegraphics[width= 0.49\textwidth]{figures/SyncAvg.png}
+\includegraphics[width= 0.49\textwidth]{figures/AsynAvg.png}
+\end{frame}
+
+\begin{frame}
+\frametitle{Causes of synchrony}
+\begin{itemize}
+\item The known possible causes
+\begin{itemize}
+\item Synchrony of environmental drivers (called the Moran effect)
+\item Dispersal
+\item Synchronous or mobile predators
+\end{itemize}
+\item Historically, hard to distinguish the causes in any given field system
+\end{itemize}
+\end{frame}
+
+\subsection{Goal and history}
+
+\begin{frame}
+\frametitle{Our goal today, but first...}
+\begin{block}{The goal today}
+\begin{itemize}
+\item The goal: to introduce \texttt{wsyn} and what can be done with it
+\item Facilitates time- and timescale-specific analyses of synchrony
+\item Facilitates inferences of environmental causes of sycnhrony 
+\end{itemize}
+\end{block}
+\begin{block}{Need to give a nod to some history, first}
+\begin{itemize}
+\item Timescale-specific approaches have developed through time
+\item So has consideration of changes through time in synchrony
+\item So have efforts to infer causes of synchrony
+\item All of these themes have a substantial history
+\item We can't review it all, but we briefly review some, to emphasize there are other approaches, and our approach builds on much prior work
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Timescale-specific approach: what is it?}
+\begin{center}
+\includegraphics[height=.8\textheight]{figures/Cospectra_explanation.png}
+\end{center}
+\end{frame}
+
+\begin{frame}
+\frametitle{Early, influential example of a timescale-specific approach}
+\begin{itemize}
+\item Grenfell et al (2001), studied measles dynamics in the UK
+\item Measles had a bennial outbreak dynamic (pre-vaccine era)
+\item By studying synchrony at that specific timescale, the authors demonstrated travelling waves and changing synchrony
+\item Key to their approach was a wavelet-based, timescale-specific approach
+\item Below: their wavelet reconstruction of annual fluctuations in London, Cambridge and Norwich
+\end{itemize}
+\includegraphics[width=\textwidth]{figures/Grenfell_etal_2001_3.png}
+\begin{itemize}
+\item Note: this is one of many prior timescale-specific approaches
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Early examples of changes in synchrony through time}
+\begin{itemize}
+\item The Grenfell study shows a bit of the history of changes in synchrony, too
+\item But changes were studied before that! 
+\item Steen et al (1990) showed changing synchrony in 79-year time series of small rodents in Norway
+\item 1=lots, 0=fewer. Note synchrony is disrupted from 1905-1915 or so, the returns.
+\end{itemize}
+\includegraphics[width=\textwidth]{figures/Steen_etal_1990_3.png}
+\begin{itemize}
+\item Note: one of many prior efforts documenting changes in synchrony
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Early examples of inferences of causes of synchrony}
+\begin{itemize}
+\item There have been many, ranging from suggestions of causes to virtual certainty
+\item One entertaining early type is special cases where 2 of 3 possible causes were impossible!
+\item Grenfell et al (1998) showed sheep synchrony on two islands in north Atlantic
+\item Dispersal not possible, no predators, must be Moran effects!
+\end{itemize}
+\includegraphics[width=\textwidth]{figures/StKilda.jpg}
+\end{frame}
+
+\subsection{Goal and viewpoint}
+
+\begin{frame}
+\frametitle{Restatement of goals, and the viewpoint}
+\begin{block}{Restatement of goal}
+\begin{itemize}
+\item The field has matured - time/timescale approaches and inferences of causes now common
+\item One framework is implemented in \texttt{wsyn}
+\item We want to introduce \texttt{wsyn} and what you get from it
+\end{itemize}
+\end{block}
+\begin{block}{The viewpoint}
+\begin{itemize}
+\item Operational - how to use these tools, how to interpret results
+\item Math is minimal. Detailed references are available though!
+\item We first intro \texttt{wsyn} on made up data, then on real data on a kelp system
+\item All codes for worked examples on the seminar github! See also \texttt{wsyn} vignette.
+\end{itemize}
+\end{block}
+\end{frame}
+
+\section{wsyn and synthetic examples}
+
+\subsection{Wavelet transform}
+
+{\setbeamercolor{background canvas}{bg=lightpink}
+\begin{frame}
+\frametitle{The wavelet transform}
+\begin{itemize}
+\item All the tools we discuss today are based on the wavelet transform
+\item So we start by introducing it
+\item Data consist of one time series
+\end{itemize}
+\end{frame}}
+
+\begin{frame}
+\frametitle{How to use the wavelet transform}
+\begin{itemize}
+\item Given a time series $x(t)$, the wavelet transform, $W_{\sigma}(t)$ is a complex number with:
+\begin{itemize}
+\item magnitude the strength of oscillation in $x(t)$ at time $t$ and timescale $\sigma$
+\item phase the phase of that oscillation
+\end{itemize}
+\item So it decomposes variation by timescale, and tells you how that changes through time
+\item You could also think of it as a time-windowed Fourier transform (but done correctly)
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of wavelet transform: make some data}
+\begin{block}{Fake data characteristics}
+\begin{itemize}
+\item One time series, sin wave of period 15, then switches to 8...
+\item Plus white noise
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Make some fake data}
+\begin{verbatim}
+time1<-1:100; time2<-101:200; times<-c(time1,time2)
+
+ts1<-c(sin(2*pi*time1/15),0*time2) #starts period 15
+ts2<-c(0*time1,sin(2*pi*time2/8)) #then period 8
+ts3<-rnorm(200,mean=0,sd=0.5) #add some white noise
+
+ts<-ts1+ts2+ts3 
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of wavelet transform: apply \texttt{wsyn::wt}}
+\begin{exampleblock}{Apply \texttt{wt}}
+\begin{verbatim}
+ts<-wsyn::cleandat(ts,times,clev=1)$cdat
+wtres<-wsyn::wt(ts$cdat,times)
+\end{verbatim}
+\end{exampleblock}
+\begin{block}{Notes}
+\begin{itemize}
+\item \texttt{cleandat} demeans time series (can also do more)
+\item \texttt{wtres} is an S3 class defined for wavelet transforms
+\item Default values for other \texttt{wt} arguments are good for exploration
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of wavelet transform: what do you get?}
+\begin{exampleblock}{Plot magnitude and phase}
+\begin{verbatim}
+wsyn::plotmag(wtres)
+wsyn::plotphase(wtres)
+\end{verbatim}
+\end{exampleblock}
+\includegraphics[width=.49\textwidth]{../results/synthetic_results/WaveletExample_magnitude.pdf}
+\includegraphics[width=.49\textwidth]{../results/synthetic_results/WaveletExample_phase.pdf}
+\end{frame}
+
+\begin{frame}
+\frametitle{Wavelet transform example}
+\begin{columns}[c]
+\begin{column}{6cm}
+\begin{itemize}
+\item The wavelet magnitude shows periodicity and change therein
+\item A power spectrum would just show two peaks at timescales 8 and 15, no time resolution
+\end{itemize}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/synthetic_results/WaveletExample_magnitude.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+{\setbeamercolor{background canvas}{bg=lightgreen}
+\begin{frame}
+\frametitle{Advantages of the wavelet transform}
+\begin{itemize}
+\item Not only shows how the overall variability of the time series decomposes by timescale...
+\item Also shows how that changes through time
+\end{itemize}
+\end{frame}}
+
+\subsection{Time and timescale structure of synchrony}
+
+{\setbeamercolor{background canvas}{bg=lightpink}
+\begin{frame}
+\frametitle{Displaying how synchrony depends on time and timescale}
+\begin{itemize}
+\item This talk covers an approach to exploring how synchrony depends on timescale...
+\item and how it changes through time
+\item So we next introduce methods for displaying the time and timescale structure of synchrony
+based on the wavelet transform
+\item Data now consist of multiple time series from different locations
+\end{itemize}
+\end{frame}}
+
+\begin{frame}
+\frametitle{The wavelet phasor mean field (\texttt{wsyn::wpmf})}
+  \begin{itemize}
+    \item For timeseries $x_n(t)$ in $n=1,\ldots,N$ locations
+    \item For wavelet transforms $W_{n,\sigma}(t)$
+    \item The WPMF is $\frac{1}{N} \sum_n \frac{W_{n,\sigma}(t)}{|W_{n,\sigma}(t)|}$
+    \item In other words average the ``phasors'' $p_{n,\sigma}(t)= \frac{W_{n,\sigma}(t)}{|W_{n,\sigma}(t)|}$
+    \item A ``phasor'' is a unit-magnitude complex number
+    \item It gives phase synchrony as a function of time and timescale
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The wavelet phasor mean field - gives a detailed picture of synchrony}
+  \begin{center}
+    \includegraphics[height=8cm]{./figures/WPMF.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of the wpmf: make some data}
+\begin{block}{Fake data characteristics}
+\begin{itemize}
+\item Several time series
+\item All have one underlying signal, switches from period 10 to 5 mid way
+\item All have randomly phase-shifted period-3 sine ways
+\item Plus white noise, independent in each signal
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of the wpmf: make some data}
+\begin{exampleblock}{Make some fake data}
+\begin{verbatim}
+times1<-0:50; times2<-51:100; times<-c(times1,times2)
+ts1<-c(sin(2*pi*times1/10),sin(2*pi*times2/5))+1.1 
+
+dat<-matrix(NA,11,length(times))
+for (counter in 1:dim(dat)[1])
+{
+  ts2<-3*sin(2*pi*times/3+2*pi*runif(1))+3.1
+  ts3<-rnorm(length(times),0,1.5)
+  dat[counter,]<-ts1+ts2+ts3    
+}
+dat<-cleandat(dat,times,1)$cdat
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}
+\frametitle{Can you see synchrony in these data? Not really.}
+\includegraphics[width=.49\textwidth]{../results/synthetic_results/WPMFExample_timeseries.pdf}
+\includegraphics[width=.49\textwidth]{../results/synthetic_results/WPMFExample_PairwiseCorrelation.pdf}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of wpmf: apply \texttt{wsyn::wpmf}}
+\begin{exampleblock}{Apply \texttt{wpmf}}
+\begin{verbatim}
+wpmfres<-wsyn::wpmf(dat,times,sigmethod="quick")
+\end{verbatim}
+\end{exampleblock}
+\begin{block}{Notes}
+\begin{itemize}
+\item \texttt{wpmfres} is an S3 class defined for wpmfs 
+\item Default values for other arguments are good for exploration, see docs and vignette for details
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of wpmf: what do you get?}
+\begin{exampleblock}{Plot magnitude}
+\begin{verbatim}
+wsyn::plotmag(wpmfres,sigthresh=0.95)
+\end{verbatim}
+\end{exampleblock}
+\begin{columns}[c]
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/synthetic_results/WPMFExample_wpmf.pdf}
+\end{column}
+\begin{column}{6cm}
+\begin{itemize}
+\item We get significant synchrony at timescale 10, initially, then at timescale 5
+\item So we detect the time- and timescale-specific synchrony that was built into the data
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Significance of the wpmf}
+\begin{itemize}
+\item Null hypothesis: random, independent phasors
+\item Significance means phasors are significantly more aligned than that
+\item Note: as always, you need to keep multiple testing in mind
+\end{itemize}
+\begin{center}
+\includegraphics[width=.5\textwidth]{../results/synthetic_results/WPMFExample_wpmf.pdf}
+\end{center}
+\end{frame}
+
+\begin{frame}
+\frametitle{The wavelet mean field (\texttt{wsyn::wmf})}
+  \begin{itemize}
+    \item We also use the ``wavelet mean field'' %$r_\sigma(t)=\frac{1}{N}\sum_{n=1}^{N}w_{n,\sigma}(t)$
+    %\item Where $w_{n,\sigma}(t)=W_{n,\sigma}(t)/\sqrt{\frac{1}{NT}\sum_{n=1}^{N}\sum_{t=1}^{T}W_{n,\sigma}(t)W_{n,\sigma}^{*}(t)}$ is a normalized wavelet transform
+    %\item The wmf uses magnitude as well as phase information, gives more complete information but a bit more complicated
+    \item Can interpret it in a similar way to \texttt{wpmf}
+    %\item But no straightforward significance testing!
+    %\item We often show both
+    \item See \texttt{wsyn} vignette for details %on how to call the \texttt{wmf} function
+  \end{itemize}
+\end{frame}
+
+{\setbeamercolor{background canvas}{bg=lightgreen}
+\begin{frame}
+\frametitle{Benefits of a timescale-specific approach to synchrony so far}
+\begin{itemize}
+\item The example shows some benefits to a time/timescale-specific approach over classic correlation-based methods
+\item Correlation methods did not show synchrony, since those methods conflated timescales and averaged across time
+\item Synchrony on some timescales was obscured by asynchrony on others
+\item We can now see the synchrony and see its structure
+\item It turns out that timescale structure is very common in synchrony
+\item It turns out that changes through time are also common, and a consequence of climate change
+\end{itemize}
+\end{frame}}
+
+\subsection{Wavelet coherence}
+
+{\setbeamercolor{background canvas}{bg=lightpink}
+\begin{frame}
+\frametitle{Starting to explore causes of synchrony}
+\begin{itemize}
+\item We know that one important cause of synchrony is the Moran effect
+\item How do we start to explore that in a time/timescale-specific viewpoint?
+\item We need to understand relationships between two sets of time series measured in the same places
+(usually one environmental and one biological)
+\item So data now consist of two sets of time series measured at the same times and places
+\item Our approach is based on ``wavelet coherence''
+\end{itemize}
+\end{frame}}
+
+\begin{frame}
+\frametitle{The basic idea of wavelet coherence, by analogy}
+\begin{itemize}
+\item Our method will 
+\begin{itemize}
+\item quantify the consistency of the phase relationship between signals, through space and time
+\item and compare that to what would be expected if the signals were unrelated but each had the same degree of phase drift across space and time
+\end{itemize}
+\item It is the very irregularity of biological time series that makes this method work
+\item Clock analogy
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Spatial wavelet coherence}
+\begin{itemize}
+\item \texttt{wsyn} has a spatialized wavelet coherence tool to detect relationships between variables in a timescale-specific way
+\item $w_{n,\sigma}^{(1)}(t)$ and $w_{n,\sigma}^{(2)}(t)$ normalized wavelet transforms
+\item $w_{n,\sigma}^{(1)}(t) (w_{n,\sigma}^{(2)}(t))^{*}$ has phase equal to the phase difference
+\item $\frac{1 }{NT}\sum_{n= 1}^{N}\sum_{t=1}^{T} w_{n,\sigma}^{(1)}(t) (w_{n,\sigma}^{(2)}(t))^{*}$ measures consistency of phase differences across time and location 
+\item This sum is large when phase differences are consistent across space and time...
+\item and small when they are not consistent
+\item We compare against the same thing calculated for randomized ``surrogate'' datasets
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of spatial coherence tools: make some data}
+\begin{block}{Fake data characteristics: environmental data}
+\begin{itemize}
+\item Data consist of an environmental driver and a biological variable, both measured at $11$ locations
+\item The environmental variable is the sum of:
+\begin{itemize}
+\item a weak common signal, period $10$
+\item a strong common signal, period $3$
+\item white noise 
+\end{itemize}
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Make the fake environmental data}
+\begin{verbatim}
+times<-(-3:100); lt<-length(times)
+ts1<-sin(2*pi*times/10)
+ts2<-5*sin(2*pi*times/3)
+x<-matrix(ts1+ts2,11,lt,byrow=TRUE)+
+  matrix(rnorm(11*lt,0,1.5),11,lt)
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of spatial coherence tools: make some data}
+\begin{block}{Fake data characteristics: biological data}
+\begin{itemize}
+\item population time series were the 3-step moving average of the environment 
+\item plus white noise
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Make the fake biological data}
+\begin{verbatim}
+times<-0:100; lt<-length(times)
+y<-matrix(NA,11,lt) #the driven (biological) variable
+for (i in 1:101) {
+  y[,i]<-apply(FUN=mean,X=x[,i:(i+2)],MARGIN=1) }
+y<-y+matrix(rnorm(11*lt,mean=0,sd=3),11,lt)
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}
+\frametitle{Can you see the relationships here using ordinary correlation? Not really.}
+\begin{columns}[c]
+\begin{column}{5cm}
+\begin{itemize}
+\item For each location we computed the correlation between the biological and environmental time series
+\item This is a histogram of those values
+\item You can't really see any tendency toward correlation
+\item Why?
+\end{itemize}
+\end{column}
+\begin{column}{7cm}
+\includegraphics[width=\textwidth]{../results/synthetic_results/CoherenceExample_LocalBiolEnvCorrs.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of spatial coherence: apply \texttt{wsyn::coh}}
+\begin{exampleblock}{Apply \texttt{coh}}
+\begin{verbatim}
+cohres<-wsyn::coh(dat1=x,dat2=y,times=times,
+  norm="powall",sigmethod="fftsurrog1",
+  nrand=1000,f0=0.5,scale.max.input=28)
+\end{verbatim}
+\end{exampleblock}
+\begin{block}{Notes}
+\begin{itemize}
+\item \texttt{cohres} is an S3 class defined for holding coherence results
+\item \texttt{nrand} is the number of bootstrapped (surrogate) datasets to use
+\item see vignette for additional details
+\end{itemize}
+\end{block}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of coherence: what do you get?}
+\begin{columns}[c]
+\begin{column}{6cm}
+\begin{itemize}
+\item Coherence between environmental and population data is the red line
+\item It is weak at short timescales (period 3) because of the moving average
+\item It is strong at long timescales
+\item Black lines are confidence thresholds based on surrogates, $95$ and $99\%$
+\end{itemize}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/synthetic_results/CoherenceExample_PlotCoh1.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of coherence: what do you get?}
+\begin{columns}[c]
+\begin{column}{6cm}
+\begin{itemize}
+\item Even though the period-3 environmental oscillation is much stronger than the period-10 ...
+\item It does not influence the populations because of the averaging
+\item Pop-env relationship depends on timescale!
+\item You have to account for that if you want to detect it!
+\item This will also influence the potential for Moran effects
+\end{itemize}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/synthetic_results/CoherenceExample_PlotCoh1.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of coherence: what do you get?}
+\begin{columns}[c]
+\begin{column}{6cm}
+\begin{itemize}
+\item You can also get the rank of the coherence compared to surrogate coherences
+\item The timescales where this exceed the threshold are ``significant''
+\item Keep in mind multiple-testing errors though
+\end{itemize}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/synthetic_results/CoherenceExample_PlotRanks.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Example of coherence: what do you get?}
+\begin{columns}[c]
+\begin{column}{4cm}
+\begin{itemize}
+\item \texttt{wsyn} can also compute $p$-values for particular timescale bands
+\item Here we consider the timescale bands 2-4 and 8-12
+\item This can help address multiple testing problems
+\item See vignette for details
+\end{itemize}
+\end{column}
+\begin{column}{8cm}
+\includegraphics[width=\textwidth]{../results/synthetic_results/CoherenceExample_PlotCoh2.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Technical slide: Significance - what are these surrogates I mentioned?}
+\begin{itemize}
+\item Given data $x_n(t)$, $y_n(t)$, $n=1,\ldots,N$, $t=1,\ldots,T$
+\item Compute the spatial wavelet coherence (a function of frequency/timescale)
+\item Compute surrogates $x'_n(t)$, recompute spatial wavelet coherence for the surrogates
+\item Repeat 10000 or so times
+\item Compare coherence plot using data to the distribution of plots using surrogates
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Technical slide: Significance - what are these surrogates I mentioned?}
+\begin{itemize}
+\item Surrogates $x'_n(t)$ should have the same spatial and temporal autocorrelation properties as $x_n(t)$, but be unrelated to $y_n(t)$
+\item How to get them (concept)
+\begin{itemize}
+\item Fourier transform all $x_n(t)$
+\item Randomize the phases of the transforms, uses the same randomizations for all $n$
+\item Reverse transform to get $x'_n(t)$
+\end{itemize}
+\item We have a fast algorithm: Sheppard et al (2017, EPJ, Nonlin Biomed Phys)
+\end{itemize}
+\end{frame}
+
+{\setbeamercolor{background canvas}{bg=lightgreen}
+\begin{frame}
+\frametitle{Advantages of the timescale specific approach}
+\begin{itemize}
+\item Time series can be related to each other on some timescales and not on others
+\item E.g., if moving average processes are what make them related
+\item If you look for correlations, you might not see the relationship - lack of relationship on other timescales obscures the relationship that does occur on certain timescales
+\item Coherence can fix that problem
+\item Timescale specific relationships should be common in biology
+\end{itemize}
+\end{frame}}
+
+\subsection{Attributing synchrony to causes}
+
+{\setbeamercolor{background canvas}{bg=lightpink}
+\begin{frame}
+\frametitle{OK, how do we get from here to saying something about environmental causes of synchrony?}
+\begin{itemize}
+\item How does coherence relate to possible causative relationships?
+\item How do we attribute synchrony to particular causes? 
+\item What about interactions between causes?
+\end{itemize}
+\end{frame}}
+
+\begin{frame}
+\frametitle{Coherence can gives you information about causes of synchrony}
+\begin{itemize}
+\item Making claims about causes from observational data is fraught, but there are already several statistical frameworks for doing it
+\item Our framework gives another that applies to environmental causes of synchrony
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Coherence can gives you information about causes of synchrony}
+\begin{itemize}
+\item If A is an environmental variable and B is a population variable, and A and B are highly significantly
+coherent on a certain timescale band, then, logically, EITHER...
+\begin{itemize}
+\item A is driving B on that band, possibly indirectly OR
+\item B is driving A on that band (very unlikely in this context) OR
+\item They are mutually influencing each other (B-to-A influence very unlikely) OR
+\item Some third variable C is driving both, or driving B and mutually related to A
+\end{itemize}
+\item In that case C is very likely another environmental variable
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Coherence can gives you information about causes of synchrony}
+\begin{itemize}
+\item So if A is an environmental variable and B is a population variable...
+\item and A and B are highly significantly coherent on a certain timescale band...
+\item and if A is synchronous...
+\item Then we can reasonably claim to have identified a Moran effect
+\item Can we then quantify how much synchrony in B is explained by synchrony in A?
+\item Yes!
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{An analytic frameworks}
+\begin{itemize}
+\item Based on what I showed you, and for the purpose of understanding environmental drivers of synchrony...
+\item We developed a wavelet linear modeling framework
+\item And a ``wavelet Moran theorem'' and ``synchrony attribution theorem''
+\item See Sheppard et al (2016), Nature Climate Change; and Sheppard et al (2019), Plos Comp Biol
+\item And the vignette; and the code that accompanies this talk
+\item I don't have time to demo these tools, but Jon will apply them
+\item They provide a reasonably comprehensive tool set for investigating environmental causes of synchrony
+\item I hope we will also have provided the necessary background where you can read the vignette for a demo
+\item The tools center on the \texttt{wsyn::wlm} function
+\end{itemize}
+\end{frame}
+
+% \begin{frame}
+% \frametitle{The made-up data: environmental}
+% \begin{itemize}
+% \item Everything is in 10 locations
+% \item Environmental variable 1, d1
+% \begin{itemize}
+% \item an oscillation of period $12$ years and an oscillation of period $3$ years
+% \item and strong white noise
+% \end{itemize}
+% \item Environmental variable 2, d2, was the same structure, but independently generated
+% \item Environmental variable 3, dirrel, was white noise only
+% \end{itemize}
+% \end{frame}
+% 
+% \begin{frame}
+% \frametitle{The made-up data: populations}
+% \begin{itemize}
+% \item The population in each location is influenced by the two drivers...
+% \item And by separate, independent local variability
+% \item Driver 1 is averaged over 3 time steps in its influence, so
+% only the period-12 variability in driver 1 influences the populations
+% \item Driver 2 influences populations directly
+% \item dirrel has no influence (hence the name)
+% \end{itemize}
+% \end{frame}
+% 
+% \begin{frame}
+% \frametitle{The goal}
+% \begin{itemize}
+% \item If we did not know the setup and only had the data, could we infer causes of synchrony?
+% \item Because of how the data were constructed, we know:
+% \begin{itemize}
+% \item d1 is important for synchrony on long timescales (12 years)
+% \item d2 is important for synchrony on long (12 years) and short (3 years) timescales
+% \item dirrel is not important for synchrony
+% \end{itemize}
+% \item Can we infer these facts from the data?
+% \end{itemize}
+% \end{frame}
+% 
+% \begin{frame}[fragile]
+% \frametitle{First fit a wavelet linear model}
+% \begin{exampleblock}{Use \texttt{wsyn::wlm}}
+% \begin{verbatim}
+% dat<-list(pops=pops,d1=d1,d2=d2,dirrel=dirrel)
+% wlm_all<-wsyn::wlm(dat,times,resp=1,pred=2:4,
+%   norm="powall",scale.max.input=28)
+% \end{verbatim}
+% \end{exampleblock}
+% \begin{block}{Wavelet linear model}
+% \begin{itemize}
+% \item $w^{(\text{pop})}_{n,\sigma}(t) = \alpha(\sigma) w^{(1)}_{n,\sigma}(t)+
+% \beta(\sigma) w^{(2)}_{n,\sigma}(t)+
+% \gamma(\sigma) w^{(\text{irrel})}_{n,\sigma}(t)$
+% \item See Sheppard et al (2019), Plos Comp Biol for details
+% \end{itemize}
+% \end{block}
+% \end{frame}
+
+%slides that show the process of testing each variable to then drop dirrel
+%then some stuff about calculating synchrony explained on each band
+%then compare with what we know b/c of how the data were generated
+%then a summay slide like "the point is, if you have the data, we can do X, Y Z"
+
+{\setbeamercolor{background canvas}{bg=lightgreen}
+\begin{frame}
+\frametitle{Upshot: what can the tools do?}
+\begin{itemize}
+\item You can investigate which environmental variables most likely helped cause synchrony in a set of populations, on any given timescale band
+\item You can quantify the fraction of observed synchrony explained by each of those factors
+\item You can quantify the fraction of observed synchrony explained by each pairwise interaction
+\end{itemize}
+\end{frame}}
+
+\section{Kelp example}
+
+\begin{frame}
+\frametitle{Empirical example: kelp wrack on beaches near Santa Barbara, CA}
+\includegraphics[width=0.95\textwidth]{../talk/figures/beachwrack.jpg}
+\end{frame}
+
+{\setbeamercolor{background canvas}{bg=lightpink}
+\begin{frame}
+\frametitle{Empirical example: kelp wrack on beaches near Santa Barbara, CA}
+Goals for the empirical example:
+\begin{itemize}
+\item Add concreteness through application to a real system
+\item Discuss some challenges posed by real-world data for application of these methods
+\end{itemize}
+\end{frame}}
+
+\begin{frame}
+\frametitle{Empirical example: kelp wrack on beaches near Santa Barbara, CA}
+\begin{itemize}
+\item Giant kelp (Macrocystis pyrifera) is a rocky reef foundation species
+\item Its detritus provides a major resource subsidy to sandy beaches
+\item Can kelp forest synchronize beach dynamics through provision of wrack?
+\end{itemize}
+\begin{block}{Reference}
+Walter, J.A., et al. (2024) Spatial synchrony cascades across ecosystems and up food webs via resource subsidies. \textit{PNAS} 122(2) e2310052120.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Empirical example: kelp wrack on beaches near Santa Barbara, CA}
+\centering
+\includegraphics[width=0.7\textwidth]{../talk/figures/wrack_concept.pdf}
+\end{frame}
+
+\begin{frame}
+\frametitle{Data sources}
+\begin{block}{Beach data}
+Santa Barbara Coastal LTER, J. Dugan, SBC LTER: Beach: Time-series of beach wrack cover and biomass, ongoing since 2008 ver 16. Environmental Data Initiative (2021). \url{https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-sbc.40.16}.
+\end{block}
+\begin{block}{Kelp forest and wave data}
+T. Bell, SBC LTER: Reef: California kelp canopy and environmental variable dynamics ver 1.
+Environmental Data Initiative (2023). \url{https://doi.org/10.6073/pasta/c40db2c8629cfa3fbe80fdc9e086a9aa}.
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Preparing data for analysis}
+\begin{itemize}
+\item Analyses in \texttt{wsyn} require complete, regularly spaced time series
+\item Organize into site (beaches) by time (months, Jan. 2009 to Dec. 2019) matrices
+\item Fill any gaps with site- and month-specific medians
+\item These steps have already been done in data files accompanying this example.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Responsible gap-filling for synchrony analyses}
+\begin{itemize}
+\item Avoid borrowing information from neighboring sites. This can build in artefactual synchrony.
+\item Be cautious with temporal structures---preserve things that have well-defined periods and consistent amplitudes, e.g., seasonal and diurnal cycles.
+\item It may be impossible to responsibly fill many/large gaps. We have generally avoided analyzing time series with more than 20\% or so missing values, when there are several consecutive missing values, and when many/all locations are missing data simultaneously.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Data prep with \texttt{wsyn::cleandat}}
+\begin{itemize}
+\item \texttt{wsyn} requires each time series have mean = 0 and will throw an error if this is not the case.
+\item May also detrend (linear), tranform to improve normality (Box-Cox), standardize (Z-score). 
+\item Standard options provided in \texttt{cleandat}; controlled using \texttt{clev} argument.
+\end{itemize}
+\begin{exampleblock}{Apply \texttt{wsyn::cleandat}}
+\begin{verbatim}
+wrack <- as.matrix(read.csv("../data/wrack.csv"))
+tt <- 1:ncol(wrack)
+wrack.cln <- wsyn::cleandat(wrack, tt, clev=5)$cdat 
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Make \texttt{wmf} and \texttt{wpmf}}
+The wavelet mean field (WMF) and wavelet phasor mean field (WPMF) quantify synchrony as a function of time and timescale.
+\begin{exampleblock}{Apply \texttt{wsyn::wmf} and \texttt{wsyn::wpmf}}
+\begin{verbatim}
+wmf.wrack <- wsyn::wmf(wrack.cln, tt)
+wpmf.wrack <- wsyn::wpmf(wrack.cln, tt, 
+  sigmethod="quick")
+wsyn::plotmag(wmf.wrack)
+wsyn::plotmag(wpmf.wrack)
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Interpret \texttt{wmf} and \texttt{wpmf}}
+\begin{columns}[c]
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackWMF.pdf}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackWPMF.pdf}
+\end{column}
+\end{columns}
+%Remember to talk here about choosing timescale bands to focus on
+\end{frame}
+
+\begin{frame}
+\frametitle{Choosing timescale bands of interest}
+\begin{itemize}
+\item Focusing on \textit{bands} of timescales aids synthesis and reduces multiple testing issues
+\item Sometimes defined \textit{a priori} using system knowledge or general theoretical considerations
+\item But often judged based on data--at what timescales are there interesting dynamics (synchrony)?
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Choosing timescale bands of interest}
+We chose 2-8 mo, 8-16 mo, and 16-60 mo as focal timescale bands.
+\begin{columns}[c]
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackWMF2.pdf}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackWPMF2.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Coherence testing}
+\begin{exampleblock}{Apply \texttt{wsyn::coh}}
+\begin{verbatim}
+#set timescale ranges
+subann <- c(0,8) #months
+annual <- c(8,16) #months
+intann <- c(16,60) #months
+#run coherence test
+wrackXkelp <- wsyn::coh(wrack.cln, kelp.cln, tt, 
+  sigmethod="fast", norm="powall", nrand=1000)
+wrackXkelp <- wsyn::bandtest(wrackXkelp, subann)
+wrackXkelp <- wsyn::bandtest(wrackXkelp, annual)
+wrackXkelp <- wsyn::bandtest(wrackXkelp, intann)
+wsyn::plotmag(wrackXkelp) 
+wsyn::plotphase(wrackXkelp)
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}
+\frametitle{Coherence testing}
+\begin{columns}[c]
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackXkelp_cohmag.pdf}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackXkelp_cohphase.pdf}
+\end{column}
+\end{columns}
+Note: dashed red line shows approximation used by fast testing method.
+\end{frame}
+
+\begin{frame}
+\frametitle{Summary of coherence tests including other 'driver' variables}
+\begin{tabular}{lccc}
+\hline
+    & 2-8 mo & 8-16 mo & 16-60 mo \\ 
+\hline
+  Kelp & $p=0.101$ & \textbf{$p=0.016$} & $p=0.003$ \\ 
+\hline
+  Waves & $p=0.022$ & $p=0.004$ & $p=0.299$ \\ 
+\hline
+  Beach width & $p=0.288$ & $p=0.006$ & $p=0.108$ \\
+\hline
+\end{tabular}
+\end{frame}
+
+\begin{frame}
+\frametitle{Building wavelet linear models}
+\begin{itemize}
+\item Multiple driver variables are coherent with beach wrack!
+\item WLMs help understand combined effects and interactions.
+\item Model selection tools are limited (e.g., no AIC), and potential for overfitting is high, especially at long timescales.
+\item Careful variable selection up front, as opposed to fitting lots of models and selecting the ``best" one.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Building wavelet linear models}
+\begin{exampleblock}{Apply \texttt{wsyn::wlm}}
+\begin{verbatim}
+datlist <- list(wrack.cln, kelp.cln, wavediff.cln, 
+  beachwidth.cln)
+wlm.annual <- wsyn::wlm(datlist, tt, resp=1, 
+  pred=c(2,3,4), norm="powall")
+#get whole-model p-value by 'dropping' all predictors
+#low nrand for fast computation, normally >=1000
+wlmtest.annual <- wsyn::wlmtest(wlm.annual, drop=2:4, 
+  sigmethod = "fft", nrand=100)
+wlmtest.annual <- wsyn::bandtest(wlmtest.annual, 
+  annual)
+predsync.annual <- wsyn::predsync(wlm.annual)
+\end{verbatim}
+\end{exampleblock}
+\end{frame}
+
+\begin{frame}
+\frametitle{WLM results}
+Whole-model p-value: $p < 0.01$
+\begin{columns}[c]
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackWMF2.pdf}
+\end{column}
+\begin{column}{6cm}
+\includegraphics[width=\textwidth]{../results/kelp_results/wrackWLM_pred.pdf}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Synchrony explained}
+\begin{exampleblock}{Apply \texttt{wsyn::syncexpl}}
+\begin{verbatim}
+syncexpl.annual <- wsyn::syncexpl(wlm.annual)
+\end{verbatim}
+\end{exampleblock}
+%\end{frame}
+
+%\begin{frame}
+%\frametitle{Synchrony explained}
+\vspace{4pt}
+\resizebox{10cm}{!}
+{
+\begin{tabular}{rrrrrrrrrr}
+  \hline
+ timescales & sync & syncexpl & crossterms & resids & pred1 & pred2 & pred3 & interactions\\ 
+  \hline
+  8.23 & 0.37 & 0.17 & 0.01 & 0.19 & 0.06 & 0.07 & 0.00 & 0.04 \\ 
+  8.64 & 0.38 & 0.23 & -0.02 & 0.16 & 0.08 & 0.07 & 0.01 & 0.07 \\ 
+  9.08 & 0.41 & 0.28 & -0.03 & 0.15 & 0.09 & 0.06 & 0.01 & 0.11 \\ 
+  9.53 & 0.45 & 0.32 & -0.02 & 0.15 & 0.08 & 0.07 & 0.04 & 0.13 \\ 
+  10.01 & 0.49 & 0.36 & -0.00 & 0.14 & 0.06 & 0.11 & 0.10 & 0.08 \\ 
+  10.51 & 0.54 & 0.40 & 0.03 & 0.11 & 0.04 & 0.20 & 0.20 & -0.05 \\ 
+  11.03 & 0.59 & 0.45 & 0.06 & 0.09 & 0.03 & 0.32 & 0.32 & -0.22 \\ 
+  11.58 & 0.64 & 0.49 & 0.07 & 0.07 & 0.01 & 0.43 & 0.44 & -0.39 \\ 
+  12.16 & 0.68 & 0.53 & 0.09 & 0.06 & 0.00 & 0.54 & 0.53 & -0.53 \\ 
+  12.77 & 0.70 & 0.57 & 0.08 & 0.05 & 0.02 & 0.62 & 0.52 & -0.59 \\ 
+  13.41 & 0.71 & 0.59 & 0.06 & 0.05 & 0.07 & 0.62 & 0.41 & -0.50 \\ 
+  14.08 & 0.69 & 0.59 & 0.04 & 0.06 & 0.09 & 0.54 & 0.28 & -0.33 \\ 
+  14.78 & 0.64 & 0.53 & 0.02 & 0.08 & 0.09 & 0.48 & 0.21 & -0.24 \\ 
+  15.52 & 0.55 & 0.43 & 0.02 & 0.10 & 0.09 & 0.68 & 0.22 & -0.56 \\ 
+   \hline
+\end{tabular}
+}
+\vspace{1pt}
+Note: output truncated for brevity.
+\end{frame}
+
+\begin{frame}
+\frametitle{Synchrony explained}
+\begin{itemize}
+\item The band-averaged fraction of synchrony explained is 0.76.
+\item One reason to be confident in this is the cross-terms are 0.07 of the synchrony explained.
+\item Generally, we've considered $<10\%$ acceptable.
+\end{itemize}
+\end{frame}
+
+{\setbeamercolor{background canvas}{bg=lightgreen}
+\begin{frame}
+\frametitle{Upshot: takeaways from empirical example?}
+\begin{itemize}
+\item Synchrony in wrack is explained by synchronous kelp production, mediated by waves and beach width
+\item Considerations for working with real data, e.g., gap filling and cleaning steps
+\item Selecting timescale bands of interest
+\item Selecting covariates for WLMs and model parsimony
+\end{itemize}
+\end{frame}}
+
+\begin{frame}
+\frametitle{Wrap-up and questions/discussion}
+\begin{itemize}
+\item A time and timescale-conscious approach to synchrony reveals overlooked patterns and strengthens inferences into mechanisms.
+\item The \texttt{wsyn} package provide a well-developed and cohesive suite of tools for implementing this perspective.
+\item We want people to use these tools and to develop them further! We routinely make ourselves available to help.
+\item Dan: reuman@ku.edu, Jon: jawalter@ucdavis.edu
+\end{itemize}
+
+
+\end{frame}
+
+\end{document}
