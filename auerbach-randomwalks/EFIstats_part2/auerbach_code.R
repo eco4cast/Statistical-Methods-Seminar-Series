@@ -50,7 +50,6 @@ simulation_data %>%
            x = c(as.Date("2024-02-01"), as.Date(bloom_date)),
            label = c("last\nfrost", "first\nbloom"))
 
-set.seed(1)
 simulation_data <- 
   function(mean_temp)
   tibble(temp = rnorm(121, mean_temp, 5),
