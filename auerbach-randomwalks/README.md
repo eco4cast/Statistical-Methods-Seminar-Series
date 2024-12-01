@@ -6,8 +6,8 @@ Many biological processes depend on the accumulation of a specific factor. For e
 
 In this presentation:
 
-- **Lizzie** will review examples from phenology where plant behavior is triggered by accumulations, such as forcing and chilling.
-- **Jonathan** will provide a high-level overview of the Central Limit Theorem for stopped random walks. He will demonstrate how this large-sample approximation can be employed to model experimental and observational data in R. Additionally, Jonathan will discuss scenarios where the approximation may fail and introduce a non-asymptotic approach that offers a better fit.
+- **Lizzie** will review examples from phenology where plant behavior is triggered by accumulations, such as forcing and chilling. See slides EFIstats_part1.pdf.
+- **Jonathan** will provide a high-level overview of the Central Limit Theorem for stopped random walks. He will demonstrate how this large-sample approximation can be employed to model experimental and observational data in R. Additionally, Jonathan will discuss scenarios where the approximation may fail and introduce a non-asymptotic approach that offers a better fit. See directory EFIstats_part2 containing slides, code, and data.
 
 ## Speakers
 
