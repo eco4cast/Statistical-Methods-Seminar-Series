@@ -25,7 +25,6 @@ simulation_data <-
   tibble(temp = rnorm(121, 10, 5),
          date = seq(as.Date("2024-01-01"), as.Date("2024-04-30"), "day"))
 
-
 bloom_date <-
   simulation_data %>%
   filter(date >= as.Date("2024-02-01")) %>%
