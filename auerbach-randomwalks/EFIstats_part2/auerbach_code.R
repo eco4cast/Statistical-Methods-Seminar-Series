@@ -10,6 +10,7 @@
 ############
 
 library("tidyverse")
+library("broom")
 library("rstan")
 options(mc.cores = parallel::detectCores())
 
@@ -68,7 +69,8 @@ lapply(rep(c(5, 10, 15, 20, 25), 20),
   mutate(doy = as.numeric(format(bloom_date, "%j"))) %>%
   lm(formula = doy ~ I(1/mean_temp),
      weight = mean_temp^3, 
-     data = .)
+     data = .) %>%
+  tidy()
 
 
 ####################################
