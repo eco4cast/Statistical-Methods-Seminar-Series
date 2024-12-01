@@ -19,7 +19,7 @@ In this presentation:
 **Bio:**
 [Jonathan Auerbach](https://jauerbach.github.io/) is a statistician at George Mason University whose research covers a wide range of topics at the intersection of statistics and public policy. He has broad methodological interests in the analysis of longitudinal data, particularly for data science and causal inference. His policy interests include urban analytics, open data, and the collection, evaluation, and communication of official statistics.
 
-### **Dr. Elizabeth Wolkovich**
+### **Elizabeth Wolkovich**
 <img src="https://biodiversity.ubc.ca/sites/default/files/styles/square_400/public/profile-images/lizzie.jpg" alt="Elizabeth Wolkovich" width="200">
 
 **Ecologist at the University of British Columbia**
