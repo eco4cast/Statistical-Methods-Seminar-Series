@@ -41,6 +41,7 @@ simulation_data %>%
                     temp, 
                     0))) + 
   geom_line() +
+  theme_bw() +
   labs(x = "", y = "cumulative temperature (°C)") +
   geom_vline(xintercept = as.Date("2024-02-01"), linetype = 2) +
   geom_vline(xintercept = as.Date(bloom_date), linetype = 2) +
