@@ -50,7 +50,7 @@ simulation_data %>%
            x = c(as.Date("2024-02-01"), as.Date(bloom_date)),
            label = c("last\nfrost", "first\nbloom"))
 
-simulation_data <- 
+simulate_data <- 
   function(mean_temp)
   tibble(temp = rnorm(121, mean_temp, 5),
          date = seq(as.Date("2024-01-01"),
@@ -63,7 +63,7 @@ simulation_data <-
   mutate(mean_temp = mean_temp)
 
 lapply(rep(c(5, 10, 15, 20, 25), 20), 
-       simulation_data) %>%
+       simulate_data) %>%
   Reduce(bind_rows, x = .) %>%
   mutate(doy = as.numeric(format(bloom_date, "%j"))) %>%
   lm(formula = doy ~ I(1/mean_temp),
