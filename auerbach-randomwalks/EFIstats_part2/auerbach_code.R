@@ -1,6 +1,6 @@
 ## Code for "Modeling biological processes as stopped random walks"
 ## Presented at EFI and Statistical Ecology Section Webinar
-## December 2, 2024 
+## Date: December 2, 2024 
 ## Author: Jonathan Auerbach
 ## Contact: jauerba@gmu.edu
 ## Website: jauerbach.github.io
