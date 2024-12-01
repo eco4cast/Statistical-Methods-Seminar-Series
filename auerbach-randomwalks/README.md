@@ -12,7 +12,7 @@ In this presentation:
 ## Speakers
 
 ### **Dr. Jonathan Auerbach**
-![Jonathan Auerbach](https://jauerbach.github.io/assets/images/me2.png)
+<img src="https://jauerbach.github.io/assets/images/me2.png" alt="Jonathan Auerbach" width="200">
 
 **Statistician at George Mason University**
 
