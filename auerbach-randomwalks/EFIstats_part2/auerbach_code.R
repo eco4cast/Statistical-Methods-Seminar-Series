@@ -120,7 +120,7 @@ figure_charrier +
   geom_line(data = 
               tibble(forceday = 5:25,
                      response.time =  colMeans(extract(fit1, "y_pred")[[1]]),),
-            color = "orange", size = 1)
+            color = "orange", linewidth = 1)
 
 
 #####################################
