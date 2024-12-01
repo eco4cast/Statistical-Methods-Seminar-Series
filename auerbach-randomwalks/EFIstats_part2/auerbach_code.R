@@ -100,6 +100,7 @@ figure_charrier +
 
 
 stan_mod1 <- stan_model("stan_code/stan_mod1.stan")
+
 fit1 <- 
   sampling(stan_mod1,
            data = list(n = nrow(charrier11),
@@ -168,6 +169,30 @@ figure_marsham +
               method = "lm", formula = y ~ I(1/x), color = "red") +
   geom_smooth(method = "glm", formula = y ~ I(1/x),
               method.args = list(family = inverse.gaussian(link = "identity")))
+
+stan_mod2 <- stan_model("stan_code/stan_mod2.stan")
+
+fit2 <- 
+  sampling(stan_mod2, 
+           data = list(n = nrow(marsham),
+                       m_lower = 300,
+                       m_upper = 800,
+                       mu = marsham$spring.temp,
+                       y = marsham$response.time),
+           control = list(adapt_delta = 0.95),
+           refresh = 0)
+
+figure_marsham +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "grey", alpha = .5,
+              data = 
+                tibble(spring.temp = 300:800,
+                       response.time =  colMeans(extract(fit2, "y_pred")[[1]]),
+                       ymin = apply(extract(fit2, "y_pred")[[1]], 2, quantile, prob = .025),
+                       ymax = apply(extract(fit2, "y_pred")[[1]], 2, quantile, prob = .975))) +
+  geom_line(data = 
+              tibble(spring.temp = 300:800,
+                     response.time =  colMeans(extract(fit2, "y_pred")[[1]]),),
+            color = "orange", linewidth = 1)
 
 
 ########################
