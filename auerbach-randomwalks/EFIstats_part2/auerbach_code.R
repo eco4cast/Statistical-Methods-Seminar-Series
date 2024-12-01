@@ -170,9 +170,9 @@ figure_marsham +
               method.args = list(family = inverse.gaussian(link = "identity")))
 
 
-#####################################
-# Application 2: Observational Data #
-#####################################
+########################
+# Non-asymptotic Model #
+########################
 
 stan_mod3 <- stan_model("stan_code/stan_mod3.stan")
 
@@ -198,11 +198,6 @@ figure_charrier +
               tibble(forceday = 5:25,
                      response.time =  colMeans(extract(fit3, "y_pred")[[1]]),),
             color = "orange", linewidth = 1)
-
-
-########################
-# Non-asymptotic Model #
-########################
 
 stan_mod4 <- stan_model("stan_code/stan_mod4.stan")
 
