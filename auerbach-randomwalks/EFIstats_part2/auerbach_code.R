@@ -261,7 +261,7 @@ figure_marsham +
 
 
 ##############
-# Comparison #
+# Conclusion #
 ##############
 
 tibble(data = c(rep("Charrier", 2), rep("Marsham", 2)), 
