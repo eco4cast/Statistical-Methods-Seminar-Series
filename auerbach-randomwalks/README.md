@@ -8,6 +8,7 @@ In this presentation:
 
 - **Lizzie** will review examples from phenology where plant behavior is triggered by accumulations, such as forcing and chilling. See slides [EFIstats_part1.pdf](https://github.com/eco4cast/Statistical-Methods-Seminar-Series/blob/main/auerbach-randomwalks/EFIstats_part1.pdf).
 - **Jonathan** will provide a high-level overview of the Central Limit Theorem for stopped random walks. He will demonstrate how this large-sample approximation can be employed to model experimental and observational data in R. Additionally, Jonathan will discuss scenarios where the approximation may fail and introduce a non-asymptotic approach that offers a better fit. See directory [EFIstats_part2](https://github.com/eco4cast/Statistical-Methods-Seminar-Series/tree/main/auerbach-randomwalks/EFIstats_part2) containing slides, code, and data.
+- **Watch the presentation** https://www.youtube.com/watch?v=uC6j7F8MoQg
 
 ## Speakers
 
