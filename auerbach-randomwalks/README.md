@@ -14,6 +14,7 @@ Watch the presentation:
 https://www.youtube.com/watch?v=uC6j7F8MoQg
 
 [![https://www.youtube.com/watch?v=uC6j7F8MoQg](https://img.youtube.com/vi/uC6j7F8MoQg/hqdefault.jpg)](https://www.youtube.com/watch?v=uC6j7F8MoQg)
+- Note the following correction. The code shown in the video for the first two Stan models is incorrect. The standard deviation was missing a square root. The slides and code in the repository have since been corrected.  
 
 ## Speakers
 
