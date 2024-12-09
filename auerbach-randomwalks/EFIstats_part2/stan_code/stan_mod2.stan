@@ -17,6 +17,6 @@ model {
 generated quantities {
   vector[m_upper - m_lower + 1] y_pred;
   for(i in m_lower:m_upper) {
-    y_pred[i - m_lower + 1] = gamma / i + delta + normal_rng(0, tau);
+    y_pred[i - m_lower + 1] = gamma / i + delta + normal_rng(0, sqrt(tau));
   }
 }
