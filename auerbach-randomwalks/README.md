@@ -11,6 +11,7 @@ In this presentation:
 
 Watch the presentation: 
 
+https://www.youtube.com/watch?v=uC6j7F8MoQg
 [![https://www.youtube.com/watch?v=uC6j7F8MoQg](https://img.youtube.com/vi/uC6j7F8MoQg/hqdefault.jpg)](https://www.youtube.com/watch?v=uC6j7F8MoQg)
 
 ## Speakers
