@@ -11,7 +11,7 @@ parameters {
   real delta;
 }
 model {
-  y ~ normal(gamma / mu + delta, gamma * pow(sigma, 2) / pow(mu, 3));
+  y ~ normal(gamma / mu + delta, sqrt(gamma * pow(sigma, 2) / pow(mu, 3)));
 }
 generated quantities {
   vector[m_upper - m_lower + 1] y_pred;
