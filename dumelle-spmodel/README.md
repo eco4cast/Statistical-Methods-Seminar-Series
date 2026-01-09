@@ -1,4 +1,4 @@
-# Building Spatial Statistical Models in **R** Using `spmodel` <a href="https://usepa.github.io/spmodel/"><img src="man/figures/logo.png" align="right" height="139" alt="spmodel website" /></a> 
+# Building Spatial Statistical Models in **R** Using `spmodel` <a href="https://usepa.github.io/spmodel/"><img src="https://github.com/USEPA/spmodel/blob/main/man/figures/logo.png" align="right" height="240" alt="spmodel website" /></a> 
 
 ### Michael Dumelle
 
