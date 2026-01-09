@@ -1,0 +1,15 @@
+title: Pointer
+author: Posit Software, PBC
+version: 0.1.0
+quarto-required: ">=1.2.198"
+contributes:
+  revealjs-plugins:
+    - name: RevealPointer
+      script: pointer.js
+      stylesheet: pointer.css
+      config:
+        pointer:
+          key: "q"
+          color: "red"
+          pointerSize: 16
+          alwaysVisible: false

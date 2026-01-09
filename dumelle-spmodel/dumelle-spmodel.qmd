@@ -1,0 +1,1955 @@
+---
+title: "Building Spatial Statistical Models in R Using `spmodel`"
+subtitle: "EFI Statistical Methods Seminar Series"
+date: January 12, 2026
+format:
+  revealjs:
+    author: 
+      - "Michael Dumelle"
+    institute: 
+      - "USEPA"
+    slide-number: true
+    preview-links: true
+    transition: fade
+    theme: [default]
+    smaller: false
+    auto-stretch: true
+    code-link: true
+    incremental: false
+    scrollable: true
+    logo: figures/spmodel_v0.6.0_website.png
+    footer: https://usepa.github.io/spmodel/
+    pointer: # $ quarto add quarto-ext/pointer
+      key: "q" # Customize the key to trigger the pointer
+      color: "green" # Pointer color (e.g., 'blue', 'green', 'red')
+      pointerSize: 32 # Pointer size in pixels
+      alwaysVisible: false
+revealjs-plugins:
+  - pointer
+execute: 
+  echo: true
+  cache: false
+title-slide-attributes: 
+  data-background-image: figures/epa_logo_green.jpg
+  data-background-size: 15%
+  data-background-position: 2% 2%
+bibliography: references.bib
+embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# load background packages
+library(tidyverse) # for general data wrangling
+library(broom) # for tidy() of lm() objects
+library(kableExtra) # for tables
+library(sf) # for spatial data operations
+library(spmodel) # for spatial modeling
+library(tigris) # for southwestern state boundaries
+```
+
+## About Me
+
+::: columns
+
+::: {.column width="40%"}
+
+![](figures/dumelle_photo1-2.png)
+
+:::
+
+::: {.column width="60%"}
+
+* Statistics Ph.D. in 2020 from Oregon State University
+* Research Interests: Spatial statistics, ecology, software development
+* CRAN software maintained: `spmodel`, `SSN2`, `spsurvey`
+* Lead statistician for USEPA's National Aquatic Resource Surveys
+
+:::
+
+:::
+
+## The NARS
+
+The National Aquatic Resource Surveys (NARS) are a collaboration between USEPA, states, and tribes to assess the quality of the nation's aquatic resources using a statistical survey design
+
+* Lakes (NLA), rivers/streams (NRSA), wetlands (NWCA), coastal waters (NCCA), Great Lakes shoreline (NGLA)
+* 5 year cycles, sampling during summer 
+* [https://www.epa.gov/national-aquatic-resource-surveys](https://www.epa.gov/national-aquatic-resource-surveys)
+* See @nahlik2025national for some history
+
+## Roadmap
+
+A tentative roadmap
+
+* The big picture
+* Some technical background
+* What is spatial covariance?
+* What are spatial linear models?
+
+If time
+
+* Applications to large data sets
+* Spatial generalized linear models 
+
+# The Big Picture
+
+## The Linear Model
+
+Simple and multiple linear regression models (i.e., linear models) are important ecological tools 
+
+$$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \epsilon$$
+
+* $y$ is the response variable 
+
+    * dependent, outcome variable
+    
+* $x$'s are explanatory variables
+
+    * covariates, predictors, independent variables, etc.
+
+    * Conditioned upon (i.e., accounted for) while modeling
+    
+* $\beta$'s are fixed effect parameters
+
+    * intercept and slope parameters
+    
+* $\epsilon$ is random error
+    
+## The Linear Model
+
+Linear models are powerful and flexible 
+
+* Some examples of linear models: Splines, analysis of variance (ANOVA), penalized regression (e.g., ridge, lasso), (linear) mixed effects models, and many others
+* Nuances of their utility are often misunderstood
+
+    * Assumptions are made directly on the errors, not the response
+
+## The Linear Model
+
+Fit in **R** using the `lm()` function
+
+```{r}
+#| echo: false
+
+# simulate data
+set.seed(1)
+n <- 20
+x1 <- rnorm(n)
+x2 <- rnorm(n)
+y <- rnorm(n)
+dat <- data.frame(x1, x2, y)
+```
+
+```{r}
+lmod <- lm(formula = y ~ x1 + x2, data = dat)
+summary(lmod)
+```
+
+## Tobler's Law
+
+When we use a linear model, we assume observations are independent 
+
+* This assumption is typically impractical for spatial data
+
+Tobler's Law: Nearby observations tend to be more similar than distant observations [@tobler1970computer; @miller2004tobler]
+
+* Also called the *First Law of Geography*
+* How can Tobler's Law affect models?
+
+## A Simulation Study
+
+Simulate data from a spatial linear model
+
+$$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \tau + \epsilon$$
+
+More on the model structure later -- for now,
+
+* $\tau$ is spatial random error 
+* Variable(s) recorded at locations with x/y-coordinates
+
+## A Simulation Study
+
+True parameter values of interest
+
+* $\beta_1 = 0$
+* $\beta_2 = 1$ 
+
+Our goal: Simulate a random set of data and estimate $\beta_1$ and $\beta_2$ using a nonspatial and a spatial linear model
+
+* The nonspatial model assumes independence
+* Sometimes "nonspatial" model and "independence" model are used interchangably
+
+## The Simulated Response
+
+```{r}
+#| include: false
+
+# set reproducible seed
+set.seed(29)
+
+# simulate data 
+n <- 200
+xc <- runif(n)
+yc <- runif(n)
+dat <- tibble(xc, yc)
+params <- spcov_params(spcov_type = "exponential", de = 2, ie = 0, range = 1)
+dat$x1 <- sprnorm(params, data = dat, xcoord = xc, ycoord = yc)
+dat$x2 <- rnorm(n, mean = 0, sd = 0.1)
+dat$y <- sprnorm(params, mean = 1 * dat$x2 , data = dat, xcoord = xc, ycoord = yc)
+```
+
+```{r}
+#| echo: false
+#| label: fig-realized_y
+#| fig-align: center
+#| fig-cap: "The spatial distribution of the response variable, y."
+ggplot(dat, aes(x = xc, y = yc, color = y)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  theme_bw(base_size = 14)
+```
+
+## Parameter Inference
+
+```{r}
+#| include: false
+
+lmod <- lm(y ~ x1 + x2, data = dat)
+tidy_lmod <- tidy(lmod, conf.int = TRUE)
+
+spmod <- splm(y ~ x1 + x2, data = dat, spcov_type = "exponential",
+              xcoord = xc, ycoord = yc)
+tidy_spmod <- tidy(spmod, conf.int = TRUE)
+```
+
+True value of $\beta_1 = 0$
+
+* Hope $\hat{\beta}_1$ has a large p-value 
+
+```{r}
+#| include: false
+
+b1 <- tibble(
+  method = c("Nonspatial", "Spatial"),
+  est = c(tidy_lmod$estimate[2], tidy_spmod$estimate[2]),
+  se = c(tidy_lmod$std.error[2], tidy_spmod$std.error[2]),
+  p.value = c(tidy_lmod$p.value[2], tidy_spmod$p.value[2]),
+  conf.low = c(tidy_lmod$conf.low[2], tidy_spmod$conf.low[2]),
+  conf.high = c(tidy_lmod$conf.high[2], tidy_spmod$conf.high[2])
+)
+```
+
+
+```{r}
+#| echo: false
+#| label: tab-fe_tidy1
+#| tbl-cap: "Parameter inference for $\\beta_1$ in the nonspatial and spatial linear models."
+
+b1 |>
+  kbl(digits = 2) |>
+  kable_classic(full_width = FALSE) |>
+  column_spec(4, color = c("red", "green")) |>
+  row_spec(seq(1, NROW(b1)), extra_css = "border-bottom-style: none;")
+```
+
+## Parameter Inference
+
+True value of $\beta_2 = 1$
+
+* Hope $\hat{\beta}_2$ has a small p-value 
+
+```{r}
+#| include: false
+
+b2 <- tibble(
+  method = c("Nonspatial", "Spatial"),
+  est = c(tidy_lmod$estimate[3], tidy_spmod$estimate[3]),
+  se = c(tidy_lmod$std.error[3], tidy_spmod$std.error[3]),
+  p.value = c(tidy_lmod$p.value[3], tidy_spmod$p.value[3]),
+  conf.low = c(tidy_lmod$conf.low[3], tidy_spmod$conf.low[3]),
+  conf.high = c(tidy_lmod$conf.high[3], tidy_spmod$conf.high[3])
+)
+```
+
+
+```{r}
+#| echo: false
+#| label: tab-fe_tidy2
+#| tbl-cap: "Parameter inference for $\\beta_2$ in the nonspatial and spatial linear models."
+
+b2 |>
+  kbl(digits = 2) |>
+  kable_classic(full_width = FALSE) |>
+  column_spec(4, color = c("red", "green")) |>
+  row_spec(seq(1, NROW(b2)), extra_css = "border-bottom-style: none;")
+```
+
+## Cross Validation
+
+
+```{r}
+#| include: false
+
+lmod <- update(spmod, spcov_type = "none")
+lmod_loocv <- loocv(lmod, cv_predict = TRUE)
+spmod_loocv <- loocv(spmod, cv_predict = TRUE)
+dat$Nonspatial <- lmod_loocv$cv_predict
+dat$Spatial <- spmod_loocv$cv_predict
+long_dat <- dat |>
+  pivot_longer(c(Nonspatial, Spatial), names_to = "approach", values_to = "pred")
+```
+
+```{r}
+#| echo: false
+#| label: fig-loocv
+#| fig-align: center
+#| fig-cap: "Observations vs leave-one-out cross validation predictions for the nonspatial and spatial linear models."
+
+ggplot(long_dat, aes(x = pred, y = y)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "orange", linewidth = 1.5) +
+  facet_wrap(~ approach) +
+  labs(x = "Leave-One-Out Prediction")  +
+  geom_text(data = data.frame(
+    pred = -2.1,
+    y = 1.8,
+    approach = c("Nonspatial", "Spatial"),
+    label = c("RMSPE = 0.86", "RMSPE = 0.31")
+  ), aes(label = label)) +
+  geom_text(data = data.frame(
+    pred = -2.05,
+    y = 1.5,
+    approach = c("Nonspatial", "Spatial"),
+    label = c("R2 = 0.36", "R2 = 0.92")
+  ), aes(label = label)) +
+  theme_bw(base_size = 14)
+```
+
+## Independence Consequences
+
+Fitting nonspatial linear models to spatial data can lead to [@legendre1993spatial; @zimmerman2024spatial]
+
+* Increased Type-I error rate for $\beta$ (false positive)
+* Increased Type-II error rate for $\beta$ (false negative); decreased power for $\beta$
+* Flawed understanding of the ecological system (poor management decisions, etc.)
+
+Fitting spatial linear models to spatial data helps remedy these concerns -- but why?
+
+## Pseudoreplication
+
+Spatial data share information, implying pseudoreplication [@hurlbert1984pseudoreplication]
+
+* Less independent pieces of information
+* Spatial models account for this pseudoreplication far more appropriately than nonspatial models
+* Spatial statistics (as a discipline) studies this type of pseudoreplication and its impact on analyses of spatial data
+
+Pseudoreplication also affects other types of models (e.g., machine learning)
+
+## Challenges
+
+If spatial models are more effective (than nonspatial models), why have they been used infrequently?
+
+* Technical challenges: Emerging discipline, theory-heavy
+* Computational challenges: Direct implementation can struggle for $n > 3{,}000$ 
+* Software challenges: Lack of accessible software to fit spatial models
+
+## Solutions
+
+Accessibility to spatial models has greatly expanded over the past decade
+
+* Many developments technically, computationally, and in software
+* Our contribution: The `spmodel` **R** package
+
+## What is `spmodel`?
+
+::: columns
+
+::: {.column width="40%"}
+
+![](figures/spmodel_v0.6.0_website.png)
+
+:::
+
+::: {.column width="60%"}
+
+`spmodel` [@dumelle2023spmodel] is an **R** package for spatial statistics designed to:
+
+* Simplify the transition from nonspatial to spatial linear and generalized linear models
+* Build upon `lm()` and `glm()` to account for *spatial covariance*
+
+:::
+
+:::
+
+## Some Recent `spmodel` Applications
+
+A few examples of recent uses
+
+* Presence of non-invasive woody species in forests [@aranda2024landscape]
+* Fish biodiversity trends in cold and warm water streams across CONUS [@rumschlag2025diverging]
+* An ecosystem resilience index for vegetation  [@johnson2025ecosystem]
+* Modeling total atmospheric nitrogen deposition across CONUS [@brehob2025us]
+* Air temperature modeling for urban areas in Iowa, US [@ecker2025urban]
+* Flower color variation with exposure to environmental stressors [@grossenbacher2025soil]
+* A statistics textbook on spatial linear models for ecological and environmental data [@zimmerman2024spatial]
+
+# Some Technical Background
+
+## What is a Spatial Process?
+
+Following @cressie1993statistics, we define a spatial process as
+
+$$ \{y(\mathbf{s}): \mathbf{s} \in D \} $$
+
+$y(\mathbf{s})$ is the response variable at a location $\mathbf{s}$ in the spatial domain $D$
+
+* Typically, $\mathbf{s}$ is two dimensional, composed of an $x$-coordinate and a $y$-coordinate
+
+## Types of Spatial Data
+
+Geostatistical (i.e., point-referenced) data
+
+* $y(\mathbf{s})$ is random and $D$ is fixed and continuous
+* E.g., sulfate deposition at locations in a field
+
+Most ecological field data is geostatistical
+
+* The standard type of spatial data you collect while field sampling (i.e., observational studies)
+
+## Types of Spatial Data
+
+Areal (i.e., lattice, polygon) data
+
+* $y(\mathbf{s})$ is random and $D$ is fixed and discrete
+* E.g., total income for each county in a state
+
+Point pattern data
+
+* $D$ is random
+* E.g., location of (mainshock) earthquakes
+
+## A Clarification
+
+`spmodel` provides tools for geostatistical and areal data (not point pattern data)
+
+* $y(\mathbf{s})$ is random and $D$ is fixed
+
+How is distance measured?
+
+* Geostatistical distance: Euclidean (our primary focus here)
+* Areal distance: Neighborhood structure
+
+Both geostatistical and areal data are unified via the spatial linear and generalized linear model
+
+## Another Clarification
+
+For notational simplicity, we henceforth drop the $(\mathbf{s})$ (assume it implicitly)
+
+Then we can write
+
+$$y(\mathbf{s}) = \beta_0 + \beta_1 x_1(\mathbf{s}) + \tau(\mathbf{s}) + \epsilon$$
+
+as $$y = \beta_0 + \beta_1 x_1 + \tau + \epsilon$$
+
+## What is Covariance? Correlation?
+
+The **covariance** between two random variables is a measure of how similar they are:
+
+* A large positive covariance implies similarity
+* A large negative covariance implies dissimilarity
+* Covariance near zero implies no relationship
+
+The **correlation** between two random variables is a scaled, unit-less version of covariance:
+
+* Bounded between $[-1, 1]$
+
+## Visualizing Covariance/Correlation
+
+::: {.panel-tabset}
+
+### Positive
+
+```{r}
+#| echo: false
+#| label: fig-pos_cov
+#| fig-align: center
+#| fig-cap: "Positive covariance between two random variables, x and y."
+
+set.seed(0)
+x <- rnorm(50)
+y <- 2 * x + rnorm(50)
+dat <- tibble(x, y)
+ggplot(dat, aes(x = x, y = y)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x) + 
+  theme_bw(base_size = 14)
+```
+
+### Negative
+
+```{r}
+#| echo: false
+#| label: fig-neg_cov
+#| fig-align: center
+#| fig-cap: "Negative covariance between two random variables, x and y."
+
+set.seed(1)
+x <- rnorm(50)
+y <- -2 * x + rnorm(50)
+dat <- tibble(x, y)
+ggplot(dat, aes(x = x, y = y)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x) + 
+  theme_bw(base_size = 14)
+```
+
+### None
+
+```{r}
+#| echo: false
+#| label: fig-no_cov
+#| fig-align: center
+#| fig-cap: "No covariance between two random variables, x and y."
+
+set.seed(2)
+x <- rnorm(50)
+y <- rnorm(50)
+dat <- tibble(x, y)
+ggplot(dat, aes(x = x, y = y)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, formula = y ~ x) + 
+  theme_bw(base_size = 14)
+```
+
+:::
+
+## Covariance vs Autocovariance vs Dependence?
+
+Covariance (Correlation) vs autocovariance (autocorrelation):
+
+* Technically, "auto" (i.e., "serial") means "with itself"
+* Often used interchangeably; we drop the "auto"
+
+The blanket term "dependence" is less precise but almost always means covariance or correlation
+
+# What is Spatial Covariance?
+
+## What is Spatial Covariance?
+
+We formalize the intuition behind Tobler's Law via *spatial covariance*:
+
+* Spatial covariance is a measure of how similar observations are to one another based on their distance apart (i.e., proximity to one another)
+* Spatial data tend to exhibit *positive* spatial covariance (nearby observations are more similar than distant ones)
+
+## A Few Spatial Processes
+
+A spatial process is typically governed by some parameters that control the *strength* of spatial covariance
+
+* The stronger the spatial covariance in the spatial process, the more pronounced the spatial patterning
+* Recall the observed spatial process is a realization (i.e., draw) from a more general random variable
+
+## A Few Spatial Processes 
+
+A few realizations from a strong and a weak spatial process
+
+```{r}
+#| include: false
+
+set.seed(1)
+n <- 200
+xc <- runif(n)
+yc <- runif(n)
+dat <- tibble(xc, yc)
+
+p1 <- spcov_params(spcov_type = "exponential", de = 1, ie = 0, range = 1)
+dat$y11 <- sprnorm(p1, data = dat, xcoord = xc, ycoord = yc)
+dat$y12 <- sprnorm(p1, data = dat, xcoord = xc, ycoord = yc)
+dat$y13 <- sprnorm(p1, data = dat, xcoord = xc, ycoord = yc)
+
+p2 <- spcov_params(spcov_type = "exponential", de = 0.01, ie = 0.99, range = 1)
+dat$y21 <- sprnorm(p2, data = dat, xcoord = xc, ycoord = yc)
+dat$y22 <- sprnorm(p2, data = dat, xcoord = xc, ycoord = yc)
+dat$y23 <- sprnorm(p2, data = dat, xcoord = xc, ycoord = yc)
+```
+
+::: {.panel-tabset}
+
+### Strong
+
+```{r}
+#| echo: false
+#| label: fig-high_spcov1
+#| fig-align: center
+#| fig-cap: "A random variable with strong spatial covariance."
+
+ggplot(dat, aes(x = xc, y = yc, color = y11)) +
+  geom_point() +
+  scale_color_viridis_c(name = "y") +
+  theme_bw(base_size = 14)
+```
+
+### Strong
+
+```{r}
+#| echo: false
+#| label: fig-high_spcov2
+#| fig-align: center
+#| fig-cap: "A random variable with strong spatial covariance."
+
+ggplot(dat, aes(x = xc, y = yc, color = y12)) +
+  geom_point() +
+  scale_color_viridis_c(name = "y") +
+  theme_bw(base_size = 14)
+```
+
+### Strong
+
+```{r}
+#| echo: false
+#| label: fig-high_spcov3
+#| fig-align: center
+#| fig-cap: "A random variable with strong spatial covariance."
+
+ggplot(dat, aes(x = xc, y = yc, color = y13)) +
+  geom_point() +
+  scale_color_viridis_c(name = "y") +
+  theme_bw(base_size = 14)
+```
+
+### Weak
+
+```{r}
+#| echo: false
+#| label: fig-low_spcov1
+#| fig-align: center
+#| fig-cap: "A random variable with weak spatial covariance."
+
+ggplot(dat, aes(x = xc, y = yc, color = y21)) +
+  geom_point() +
+  scale_color_viridis_c(name = "y") +
+  theme_bw(base_size = 14)
+```
+
+### Weak
+
+```{r}
+#| echo: false
+#| label: fig-low_spcov2
+#| fig-align: center
+#| fig-cap: "A random variable with weak spatial covariance."
+
+ggplot(dat, aes(x = xc, y = yc, color = y22)) +
+  geom_point() +
+  scale_color_viridis_c(name = "y") +
+  theme_bw(base_size = 14)
+```
+
+### Weak
+
+```{r}
+#| echo: false
+#| label: fig-low_spcov3
+#| fig-align: center
+#| fig-cap: "A random variable with weak spatial covariance."
+
+ggplot(dat, aes(x = xc, y = yc, color = y23)) +
+  geom_point() +
+  scale_color_viridis_c(name = "y") +
+  theme_bw(base_size = 14)
+```
+
+:::
+
+## Measuring Spatial Covariance
+
+We measure spatial covariance between two observations using a spatial covariance function:
+
+$$\text{Cov}(h) = \sigma^2_{de} f(h, \phi) + \sigma^2_{ie}I\{h = 0\}$$
+
+* $h$ is the distance between the two locations
+
+## Measuring Spatial Covariance
+
+We measure spatial covariance between two observations using a spatial covariance function:
+
+$$\text{Cov}(h) = \sigma^2_{de} f(h, \phi) + \sigma^2_{ie}I\{h = 0\}$$
+
+* $\sigma^2_{de}$ is the spatially dependent variance (i.e., partial sill)
+* $f(h, \phi)$ is a function of both distance ($h$) and a range parameter ($\phi$)
+
+For the exponential
+    
+$$f(h, \phi) = \exp(-h/\phi)$$
+    
+For the Gaussian
+    
+$$f(h, \phi) = \exp(-h^2/\phi^2)$$
+    
+For the spherical
+    
+$$f(h, \phi) = (1 - 1.5\frac{h}{\phi} + 0.5 \frac{h^3}{\phi^3})I\{h <= \phi \} $$
+    
+## Measuring Spatial Covariance
+
+We measure spatial covariance between two observations using a spatial covariance function:
+
+$$\text{Cov}(h) = \sigma^2_{de} f(h, \phi) + \sigma^2_{ie}I\{h = 0\}$$
+
+* $\sigma^2_{ie}$ is the independent (i.e., nonspatial) variance (i.e., nugget)
+* $I\{\cdot\}$ is an indicator function
+* Resampling variability (what if I sampled again tomorrow?)
+
+## Measuring Spatial Covariance
+
+We measure spatial covariance between two observations using a spatial covariance function:
+
+$$\text{Cov}(h) = \sigma^2_{de} f(h, \phi) + \sigma^2_{ie}I\{h = 0\}$$
+
+* The total variance is $\sigma^2_{de} + \sigma^2_{ie}$ (i.e., the sill)
+* Sometimes nomenclature differs!
+
+## Visualizing Spatial Covariance
+
+```{r}
+#| include: false
+
+h <- seq(1e-4, 4, length.out = 1000)
+sill <- 3
+spcov1 <- tibble(h = h, cov = sill * exp(-h^2), Example = 1) # gaussian
+spcov2 <- tibble(h = h, cov = sill * exp(-h), Example = 2) # exponential
+spcov3 <- tibble(h = h,
+                 cov = sill * 0.72 * (1 - 1.5 * h/0.47 + 0.5 * (h/0.47)^3) * (h <= 0.47),
+                 Example = 3) # spherical
+spcov4 <- tibble(h = h, cov = sill * 0.4 * exp(-h/3), Example = 4) # exponential
+spcov5 <- tibble(h = h, cov = sill * 0.25 * exp(-h^2/3), Example = 5) # gaussian
+spcov6 <- tibble(h = h,
+                 cov = sill * 0.15 * (1 - 1.5 * h/1.6 + 0.5 * (h/1.6)^3) * (h <= 1.6),
+                 Example = 6) # spherical
+spcovs <- bind_rows(spcov1, spcov2, spcov3, spcov4, spcov5, spcov6) |>
+  mutate(Example = factor(Example))
+spcov_total <- data.frame(h = 0, cov = sill)
+```
+
+
+```{r}
+#| echo: false
+#| label: fig-ex_spcov
+#| fig-align: center
+#| fig-cap: "Examples of several different spatial covariance functions."
+
+ggplot() +
+  geom_point(data = spcov_total, aes(x = h, y = cov), size = 4) +
+  geom_line(data = spcovs, aes(x = h, y = cov, color = Example, linetype = Example), linewidth = 2) +
+  scale_color_viridis_d(direction = -1, begin = 0.2) +
+  labs(x = "Distance", y = "Spatial Covariance") +
+  theme_bw(base_size = 14)
+```
+
+## Let's Recap
+
+The takeaways
+
+* Spatial data tend to be more similar at nearby locations than distant locations (Tobler's Law)
+* Measure spatial covariance using a spatial covariance function (distance, variance parameters, range parameter)
+* Spatial linear models are more realistic and effective for spatial data (than nonspatial linear models)
+
+## Let's Recap
+
+What's coming next
+
+* Describe a linear model for spatial data (i.e., the spatial linear model)
+* Fit spatial linear models using `splm()`
+* Estimate the spatial covariance of $y$ given explanatory variables
+* Model inference, diagnostics, comparison
+* Prediction at new locations (i.e., Kriging)
+
+# The Spatial Linear Model
+
+## The Spatial Linear Model
+
+The spatial linear model
+
+$$ y = \beta_0 + \beta_1 x_1 + ... + \beta_p x_p + \tau + \epsilon $$
+
+* $y$ is the response variable 
+* $x$'s are explanatory variables 
+* $\beta$'s are fixed effect parameters
+
+## The Spatial Linear Model
+
+The spatial linear model
+
+$$ y = \beta_0 + \beta_1 x_1 + ... + \beta_p x_p + \tau + \epsilon $$
+
+$\tau$ is spatially dependent random error
+
+* $\text{Cov}(\tau) = \sigma^2_{de}f(h, \phi)$
+
+$\epsilon$ is independent (i.e., nonspatial) random error
+
+* $\text{Cov}(\epsilon) = \sigma^2_{ie}I\{h = 0\}$
+
+Everything we have learned about spatial covariance translates to estimation of the parameters governing $\tau$ and $\epsilon$
+
+## The Spatial Linear Model
+
+The inclusion of $\tau$ makes the model a *spatial linear model*
+
+* The structure of each $x_i$ is irrelevant
+
+* The following model is a nonspatial linear model
+
+$$ y = \beta_0 + \beta_1 x_1 + \epsilon $$
+
+* The following model is a spatial linear model
+
+$$ y = \beta_0 + \beta_1 x_1 + \tau + \epsilon $$
+
+## How are Parameters Estimated?
+
+Several parameter estimation methods (`estmethod`)
+
+* Restricted maximum likelihood (`"reml"`; the default) 
+* Maximum likelihood (`"ml"`) 
+* Cressie's semivariogram-based weighted least squares (`"sv-wls"`; see `weights`)
+* Curriero and Lele's semivariogram-based composite likelihood (`"sv-cl"`)
+
+## How are Parameters Estimated?
+
+**The important point**: The explanatory variables are accounted for while estimating the spatial covariance parameters (and vice versa)
+
+See the references for more details
+
+* `"reml"`: @patterson1971recovery; @harville1977maximum; @wolfinger1994computing
+* `"ml"`: @wolfinger1994computing
+* `"sv-wls"`: @cressie1985fitting
+* `"sv-cl"`: @curriero1999composite
+
+## The `lake` Data
+
+The `lake` data in `spmodel` is an `sf` object [@pebesma2018sf] with data from 102 lakes in four southwestern US states (Arizona, Colorado, Nevada, Utah):
+
+```{r}
+lake
+```
+
+## Visualizing Log Conductivity
+
+```{r}
+#| include: false
+states <- states(cb = TRUE) |>
+  filter(STUSPS %in% c("AZ", "CO", "NV", "UT")) |>
+  st_transform(crs = 5070)
+```
+
+```{r}
+#| echo: false
+#| label: fig-logcond
+#| fig-align: center
+#| fig-cap: "The (natural) logarithm of conductivity at lakes in the southwestern United States."
+
+ggplot() +
+  geom_sf(data = states, fill = "white") +
+  geom_sf(data = lake, aes(color = log_cond, shape = state)) + 
+  scale_color_viridis_c() +
+  theme_bw(base_size = 14)
+```
+
+## Fit a Spatial Linear Model
+
+Fit a spatial linear model to study the impact of elevation and lake origin on (log) conductivity while accounting for spatial covariance
+```{r}
+spmod <- splm(
+  formula = log_cond ~ elev + origin,
+  data = lake,
+  spcov_type = "exponential"
+)
+```
+
+* If `data` is not an `sf` object, provide the `xcoord` and `ycoord` arguments to `splm()`
+
+## Summarize the Model
+
+```{r}
+summary(spmod)
+```
+
+While informative, this output can be hard to use directly because it is printed to the **R** console
+
+## The `broom` Functions
+
+The `broom` **R** package [@robinson2025broom] converts statistical model output into *tidy tibbles*:
+
+* `tidy()` tidies the model output
+* `glance()` glances at the model fit
+* `augment()` augments data with model diagnostics (later, with predictions)
+
+## Tidying the Model
+
+```{r}
+tidy(spmod)
+tidy(spmod, conf.int = TRUE)
+```
+
+## Glancing at the Model
+
+```{r}
+glance(spmod)
+```
+
+* `n`: Sample size
+* `p`: Number of (estimated) explanatory variables
+* `npar`: Number of (estimated) spatial covariance parameters
+* Likelihood-based statistics
+* `pseudo.r.squared`: Pseudo R-squared, the variability attributable to the explanatory variables
+
+## Augmenting the Model
+
+```{r}
+augment(spmod)
+```
+
+## Augmenting the Model
+
+The components of `augment()`:
+
+* `.fitted`: The fitted values, $X \hat{\beta}$
+* `.resid`: The residuals, $y - X \hat{\beta}$ 
+* `.hat`: The hat (i.e., leverage) values
+* `.cooksd`: The Cook's distance
+* `.std.resid`: The standardized residuals (decorrelated, unit variance)
+* Can also use `fitted()`, `residuals()`, `hatvalues()`, `cooks.distance()`, `rstandard()`
+
+## Checking Model Assumptions
+
+Use standardized residuals to check model assumptions as in a nonspatial linear model
+
+```{r}
+#| label: fig-plot_stdresid_fitted
+#| fig-align: center
+#| fig-cap: "Standardized residuals vs fitted values. There is no obvious pattern between the standardized residuals and fitted values."
+
+plot(spmod, which = 1)
+```
+
+## Model Diagnostics
+
+The fitted spatial covariance (after accounting for the explanatory variables): 
+
+$$\text{Cov}(h) = 0.61\exp(-h/820{,}500) + 0.47I\{h = 0 \}$$
+
+## Model Diagnostics
+
+The fitted spatial covariance (after accounting for the explanatory variables): 
+
+```{r}
+#| label: fig-logcond_explanatory_spcov
+#| fig-align: center
+#| fig-cap: "The fitted spatial covariance of log conductivity (after accounting for the explanatory variables)."
+
+plot(spmod, which = 7)
+```
+
+## Spatial Prediction (i.e., Kriging)
+
+Often, a primary goal is to predict the spatial process at new locations
+
+* Kriging, best linear unbiased prediction, spatial prediction, prediction
+
+Explanatory variables must also be in the prediction data
+
+## The `lake_preds` Data
+
+Predict log conductivity at the 10 lakes in `lake_preds`
+
+```{r}
+lake_preds
+```
+
+## Visualizing `lake_preds`
+
+```{r}
+#| echo: false
+#| label: fig-logcond_preds_spcov
+#| fig-align: center
+#| fig-cap: "The (natural) logarithm of conductivity at lakes in the southwestern United States alongside log conductivity predictions at new lakes (black triangles)."
+
+ggplot() +
+  geom_sf(data = states, fill = "white") +
+  geom_sf(data = lake, aes(color = log_cond)) + 
+  scale_color_viridis_c() +
+  geom_sf(data = lake_preds, pch = 17, size = 6) +
+  theme_bw(base_size = 14)
+```
+
+## Spatial Prediction
+
+Can use `predict()` or `augment()`:
+
+```{r}
+predict(spmod, newdata = lake_preds)
+augment(spmod, newdata = lake_preds)
+```
+
+## Spatial Prediction
+
+Combining `augment()` and `sf` objects helps visualize predictions spatially:
+
+```{r}
+#| echo: false
+#| label: fig-logcond_preds_spcov2
+#| fig-align: center
+#| fig-cap: "The (natural) logarithm of conductivity at lakes in the southwestern United States alongside log conductivity predictions (triangles)."
+
+aug_spmod <- augment(spmod, newdata = lake_preds)
+ggplot() +
+  geom_sf(data = states, fill = "white") +
+  geom_sf(data = lake, aes(color = log_cond)) + 
+  geom_sf(data = aug_spmod, aes(color = .fitted), pch = 17, size = 6) +
+  scale_color_viridis_c() +
+  theme_bw(base_size = 14)
+```
+
+## Spatial Prediction
+
+Prediction intervals using `interval`:
+
+```{r}
+predict(spmod, newdata = lake_preds, interval = "prediction")
+augment(spmod, newdata = lake_preds, interval = "prediction")
+```
+
+## Model Comparison
+
+Motivated spatial linear models via first principles (Tobler's Law), but are they really a better fit?
+
+* Fit a nonspatial linear model using `splm(..., spcov_type = "none")`
+
+```{r}
+lmod <- splm(log_cond ~ elev + origin, data = lake, spcov_type = "none")
+```
+
+Why use `splm(..., spcov_type = "none")` instead of `lm()`?
+
+* To access some `spmodel`-specific helper functions like `loocv()`
+
+## Model Comparison
+
+The spatial model is **strongly preferred** via
+
+1. Likelihood-based statistics (AIC, AICc, BIC):
+
+```{r}
+glances(lmod, spmod)
+```
+
+Lower values of AIC, AICc, BIC
+
+## Model Comparison
+
+The spatial model is **strongly preferred** via
+
+2. Leave-one-out cross validation:
+
+```{r}
+loocv(lmod)
+loocv(spmod)
+```
+
+Unbiased, lower values of MSPE/RMSPE, higher values of predictive R-squared (`cor2`)
+
+## A Cautionary Note
+
+Pseudo R-squared is a useful diagnostic but is not a model selection tool
+
+```{r}
+pseudoR2(lmod)
+pseudoR2(spmod)
+```
+
+Predictive R-squared (`cor2` from `loocv()`) can be used as a model selection tool
+
+## A Cautionary Note
+
+Confusion arises from the R-squared having two meanings simultaneously (when models assume independence)
+
+1. Variability attributable to the explanatory variables (pseudo R-squared)
+2. Squared correlation between predicted values and data (predictive R-squared)
+
+These definitions are not equivalent when models do not assume independence
+
+## Model Comparison
+
+What about comparing different functional forms?
+
+* Don't know which to choose? Start with `"exponential"` and `"gaussian"`
+
+```{r}
+spmod_list <- splm(
+  formula = log_cond ~ elev + origin,
+  data = lake,
+  spcov_type = c("exponential", "gaussian", "none")
+)
+glances(spmod_list)
+```
+
+## Model Comparison
+
+Don't stress too much about choosing the *best* spatial covariance function
+
+* Typically, the gap between the nonspatial model and the worst spatial model is much larger than the gap between the worst spatial model and the best spatial model
+* First focus on research questions, data quality, omitted explanatory variables, etc.
+
+## Let's Recap
+
+The takeaways
+
+* Spatial linear models extend linear models to account for spatial covariance
+* Fit spatial linear models using `splm()` in `spmodel`
+* The `broom` functions: `tidy()`, `glance()`, and `augment()`
+* Tools for model inference, diagnostics, prediction, and comparison
+
+## Let's Recap
+
+What's coming next
+
+* An overview of additional `spmodel` features
+
+* Some closing thoughts
+
+* If time, focus on
+
+    * applications to large data sets 
+    * spatial *generalized* linear models
+
+# Some Additional `spmodel` Features
+
+## Some Additional `spmodel` Features
+
+Additional arguments to `splm()`
+
+* `anisotropy`, `random`, `partition_factor`, `spcov_initial`, `estmethod`, etc.
+
+Additional modeling tools 
+
+* `anova()`, `emmeans`, `car`, `predict(..., block)`, `varcomp()`, etc.
+
+Applications to large data sets
+
+* The `local` argument
+
+Spatial generalized linear models
+
+* `spglm()`
+
+## Some Additional `spmodel` Features
+
+Spatial linear and generalized models for areal (i.e., polygon) data
+
+* `spautor()` and `spgautor()`
+
+Exploratory tools
+
+* `esv()`, `eacf()`
+
+Simulating spatial data
+
+* `sprnorm()`, `sprbinom()`, etc.
+
+Spatial machine learning tools
+
+* e.g., `splmRF()`
+
+And more coming!
+
+# Closing Thoughts
+
+## What's the Pitch?
+
+What are some reasons to add `spmodel` to your toolbox?
+
+* A general tool that extends `lm()` and `glm()` for spatial data
+* Many additional features (see previous slide)
+* Integrated with existing **R** ecosystem (e.g., `base`, `stats`, `broom`, `emmeans`, `car`)
+* In active development
+
+Reviewer question: "Did you study the impact of spatial covariance/autocovariance/correlation/autocorrelation on your data?"
+
+* You can say yes!
+
+## Alternatives
+
+What are some reasons to prefer an alternative to `spmodel`?
+
+* Point process analysis
+
+    * e.g., `spatstat` [@baddeley2015spatstat]
+    
+* A Bayesian application
+
+    * e.g., `spBayes` [@finley2007spbayes], `R-INLA` [@lindgren2015bayesian]
+    
+* Lacks some other functionality critical to your workflow
+
+    * e.g., joint species distribution models in `spOccupancy` [@doser2022spoccupancy]
+    * e.g., ordination in `vegan` [@oksanen2024vegan]
+    * e.g., spatial stream network modeling in `SSN2` [@dumelle2024ssn2]
+    * e.g., N-mixture models in `spAbundance` [@doser2024spabundance]
+    
+## Citation Information
+
+If you use `spmodel`, please do cite it
+
+* Citing `spmodel` helps us keep track of uses and justifies future development resources (e.g., bugfixes, updates, etc.)
+
+```{r}
+citation(package = "spmodel")
+```
+
+## Where to Learn More?
+
+For the most up to date resources, check out our website: [https://usepa.github.io/spmodel/](https://usepa.github.io/spmodel/)
+
+* Function documentation in "Reference" Tab
+* Vignettes in "Articles" Tab (6+) and links therein (e.g., workshop materials)
+
+    * Vignettes: Introductory, Detailed Guide, SPGLMs, `emmeans` integration [@lenth2024emmeans], block prediction, technical details
+    * Example of workshop materials: [https://usepa.github.io/spworkshop.sfs24/](https://usepa.github.io/spworkshop.sfs24/)
+
+## What's Next for `spmodel`?
+
+What things are we excited about?
+
+* Paper acceptance: "Spatial generalized linear models in **R** Using `spmodel`" at *Journal of Statistical Software* (expected publication 2026)
+* Textbook (open-source): "A practical introduction to spatial statistics in **R**" (title subject to change; expected publication 2028)
+* Additional features: Spatio-temporal models, conditional simulation, enhanced machine learning tools, and more
+
+## What's Next for `spmodel`?
+
+We are always interested in hearing from YOU! We want `spmodel` to be as useful as possible
+
+* My email: dumelle.michael\@epa.gov (primary); michael.dumelle@oregonstate.edu (secondary)
+* Bug reports and suggestions: [https://github.com/USEPA/spmodel/issues](https://github.com/USEPA/spmodel/issues)
+
+    * A few recent user suggestions: `emmeans` integration, robust and cloud empirical semivariograms, empirical autocovariance functions
+    
+* Open to potential seminars, workshops, other collaborations, etc. Email me!
+
+## Thank You!
+
+::: columns
+
+::: {.column width="40%"}
+
+![](figures/spmodel_v0.6.0_website.png)
+
+:::
+
+::: {.column width="60%"}
+
+A special thank you to
+
+* ESA Statistical Ecology Section, ESA, and EFI for hosting and the invitation!
+* Developers Matt Higham and Jay M. Ver Hoef
+* USEPA colleagues Darin Kopp, Ryan A. Hill, Amanda M. Nahlik
+* You for attending!
+
+:::
+
+:::
+
+## Thank You!
+
+::: columns
+
+::: {.column width="40%"}
+
+![](figures/spmodel_v0.6.0_website.png)
+
+:::
+
+::: {.column width="60%"}
+
+Contact me at
+
+* dumelle.michael\@epa.gov (primary email)
+* michael.dumelle@oregonstate.edu (secondary email)
+
+Questions? 
+
+Applications to large data sets? Spatial generalized linear models?
+
+:::
+
+:::
+
+
+# Applications to Large Data Sets
+
+## Simulating Some Data
+
+`sprnorm()` for simulating spatial Gaussian data
+
+::: {.panel-tabset}
+
+### Setup
+
+```{r}
+set.seed(1)
+n <- 2500
+xc <- runif(n)
+yc <- runif(n)
+x <- runif(n)
+dat <- data.frame(xc, yc, x)
+```
+
+### Simulate
+
+```{r}
+params <- spcov_params(spcov_type = "exponential", de = 1, ie = 0.2, range = 1)
+mu <- 1 + x
+dat$y <- sprnorm(params, mean = mu, data = dat, xcoord = xc, ycoord = yc)
+```
+
+### Split
+
+```{r}
+n_train <- 2000
+train_dat <- dat[seq(1, n_train), ]
+test_dat <- dat[-seq(1, n_train), ]
+```
+
+### $y$
+
+```{r}
+#| echo: false
+#| label: fig-train_y
+#| fig-align: center
+#| fig-cap: "The simulated response variable in the training data."
+
+ggplot(data = train_dat, aes(x = xc, y = yc, color = y)) +
+  geom_point() +
+  scale_color_viridis_c() + 
+  theme_bw(base_size = 14)
+```
+
+### $x$
+
+```{r}
+#| echo: false
+#| label: fig-train_x
+#| fig-align: center
+#| fig-cap: "The simulated explanatory variable in the training data."
+
+ggplot(data = train_dat, aes(x = xc, y = yc, color = x)) +
+  geom_point() +
+  scale_color_viridis_c() + 
+  theme_bw(base_size = 14)
+```
+
+### $y$ vs $x$
+
+```{r}
+#| echo: false
+#| label: fig-train_y_x
+#| fig-align: center
+#| fig-cap: "The simulated response and explanatory variables in the training data."
+
+ggplot(data = train_dat, aes(x = x, y = y)) +
+  geom_point() +
+  theme_bw(base_size = 14)
+```
+
+:::
+
+## Spatial Indexing
+
+The computational challenge for model fitting is inverting an $n \times n$ matrix
+
+* Doubling the sample size takes between 4 and 8 times as long (depending on estimation method)
+
+Solution? Split large data set up into smaller data sets and pool results [@ver2023indexing; @dumelle2024lakes]
+
+* For a review of other approaches to the big data spatial problem, see @heaton2019case
+
+## Assigning SPIN Groups
+
+Two examples of ways to assign observations to groups
+
+* kmeans clustering: 
+
+```{r}
+coords <- data.frame(train_dat$xc, train_dat$yc)
+dists <- coords |>
+  dist() |>
+  as.matrix()
+kmeans_output <- kmeans(dists, centers = 4)
+train_dat$kmeans <- kmeans_output$cluster |>
+  as.factor()
+```
+
+* random assignment:
+
+```{r}
+index <- rep(1:4, length.out = n_train)
+train_dat$random <- index |>
+  sample() |>
+  as.factor()
+```
+
+## Assigning SPIN Groups
+
+::: {.panel-tabset}
+
+### kmeans Assignment
+
+```{r}
+#| echo: false
+#| label: fig-spin_kmeans
+#| fig-align: center
+#| fig-cap: "Spatial indexing groups chosen via kmeans clustering."
+
+ggplot(data = train_dat, aes(x = xc, y = yc, color = kmeans, shape = kmeans)) +
+  geom_point() +
+  scale_color_viridis_d() + 
+  theme_bw(base_size = 14)
+```
+
+### Random Assignment
+
+```{r}
+#| echo: false
+#| label: fig-spin_random
+#| fig-align: center
+#| fig-cap: "Spatial indexing groups chosen via random assignment."
+
+ggplot(data = train_dat, aes(x = xc, y = yc, color = random, shape = random)) +
+  geom_point() +
+  scale_color_viridis_d() + 
+  theme_bw(base_size = 14)
+```
+
+:::
+
+## The `local` Argument
+
+A logical argument (`TRUE`/`FALSE`) or a list to `splm()` that controls SPIN details:
+
+* The group assignment method (kmeans, random)
+* The number of groups (or the number of observations in a group)
+* The variance adjustment
+* Parallel processing and cores used
+
+## The `local` Argument
+
+`local = TRUE` is shorthand for
+
+```{r}
+#| eval: false
+
+local_list <- list(
+  method = "kmeans",
+  size = 100,
+  var_adjust = "theoretical",
+  parallel = FALSE
+)
+splm(..., local = local_list)
+```
+
+## Model Fitting
+
+How do the fit times compare?
+
+::: {.panel-tabset}
+
+### Direct
+
+```{r}
+spmod_direct_start <- Sys.time()
+spmod_direct <- splm(
+  formula = y ~ x,
+  data = train_dat,
+  spcov_type = "exponential",
+  xcoord = xc,
+  ycoord = yc
+)
+spmod_direct_time <- Sys.time() - spmod_direct_start
+```
+
+### SPIN
+
+```{r}
+spmod_bigdata_start <- Sys.time()
+spmod_bigdata <- splm(
+  formula = y ~ x,
+  data = train_dat,
+  spcov_type = "exponential",
+  xcoord = xc,
+  ycoord = yc,
+  local = TRUE
+)
+spmod_bigdata_time <- Sys.time() - spmod_bigdata_start
+```
+
+### Times
+
+```{r}
+spmod_direct_time
+spmod_bigdata_time
+```
+
+The performance gap will increase with the size of the observed data, $n$
+
+### $n$ Limits
+
+For "lunch-break" computational times:
+
+* Direct approach limit $n \approx 10{,}000$
+* SPIN approach (adjusted variance) limit $n \approx 250{,}000$
+* SPIN approach (unadjusted variance) limit $n \approx 1{,}000{,}000$
+* Very approximate guidelines
+
+:::
+
+## Inference Comparison
+
+```{r}
+tidy(spmod_direct) |>
+  filter(term == "x")
+
+tidy(spmod_bigdata) |>
+  filter(term == "x")
+```
+
+## Cross-Validation Comparison
+
+```{r}
+loocv(spmod_direct)
+loocv(spmod_bigdata)
+```
+
+## Spatial Covariance Comparison
+
+::: {.panel-tabset}
+
+
+### Coefficients
+
+```{r}
+coef(spmod_direct, type = "spcov")[1:3]
+coef(spmod_bigdata, type = "spcov")[1:3]
+```
+
+### Direct Covariance
+
+```{r}
+#| echo: false
+#| label: fig-direct_fit
+#| fig-align: center
+#| fig-cap: "Spatial covariance from the direct model."
+
+plot(spmod_direct, which = 7)
+```
+
+### SPIN Covariance
+
+```{r}
+#| echo: false
+#| label: fig-spin_fit
+#| fig-align: center
+#| fig-cap: "Spatial covariance from the spatial indexing (SPIN) model."
+
+plot(spmod_bigdata, which = 7)
+```
+
+:::
+
+## Spatial Prediction
+
+The computational challenge for spatial prediction is inverting an $n \times n$ matrix
+
+* $n$ is the size of the **observed** data
+    
+Solution? Only use the $n_{sub}$ observations closest to the prediction location
+
+* Called *local neighborhood prediction* (LNBH)
+* Closely related to NNGP ideas [@datta2016hierarchical; @doser2023joint]
+
+## The `local` Argument
+
+A logical argument (`TRUE`/`FALSE`) or a list to `predict()` that controls LNBH details:
+
+* The neighborhood assignment method (distance, covariance, all)
+* The number of $n_{sub}$ observations to use for each prediction location
+* Parallel processing and cores used
+
+## The `local` Argument
+
+`local = TRUE` is shorthand for
+
+```{r}
+#| eval: false
+
+local_list <- list(
+  method = "covariance",
+  size = 100,
+  parallel = FALSE
+)
+predict(object, ..., local = local_list)
+```
+
+## Spatial Prediction
+
+
+How do the LNBH prediction times compare?
+
+::: {.panel-tabset}
+
+### Direct
+
+```{r}
+preds_direct_start <- Sys.time()
+preds_direct <- predict(spmod_direct, newdata = test_dat, se.fit = TRUE)
+preds_direct_time <- Sys.time() - preds_direct_start
+```
+
+### LNBH
+
+```{r}
+preds_bigdata_start <- Sys.time()
+preds_bigdata <- predict(spmod_bigdata, newdata = test_dat, se.fit = TRUE)
+preds_bigdata_time <- Sys.time() - preds_bigdata_start
+```
+
+### Times
+
+```{r}
+preds_direct_time
+preds_bigdata_time
+```
+
+The performance gap will increase with the size of the observed data, $n$
+
+### $n$ Limits
+
+For "lunch-break" computational times:
+
+* Direct approach limit $n \approx 10{,}000$, $n_{sub} \approx 100{,}000$
+* LNBH approach limit $n \approx 100{,}000$, $n_{sub} \approx 100{,}000$
+* Parallel processing can speed this up significantly (more benefit than model fitting)
+* Very approximate guidelines
+
+:::
+
+
+
+## Spatial Prediction
+
+::: {.panel-tabset}
+
+### Test Data
+
+```{r}
+#| echo: false
+#| label: fig-test_y
+#| fig-align: center
+#| fig-cap: "The simulated response variable in the test data."
+
+ggplot(test_dat, aes(x = xc, y = yc, color = y)) +
+  geom_point() +
+  scale_color_viridis_c(limits = c(-3.25, 2.5)) +
+  theme_bw(base_size = 14)
+```
+
+
+### Predictions
+
+```{r}
+#| include: false
+
+test_dat$direct <- preds_direct$fit
+test_dat$bigdata <- preds_bigdata$fit
+test_dat_long <- test_dat |>
+  pivot_longer(cols = c(direct, bigdata), names_to = "Approach", values_to = "Pred") |>
+  mutate(Approach = factor(Approach, levels = c("direct", "bigdata")))
+```
+
+
+```{r}
+#| echo: false
+#| label: fig-test_y_preds
+#| fig-align: center
+#| fig-cap: "Predictions for the direct and big data (LNBH) approaches."
+
+ggplot(test_dat_long, aes(x = xc, y = yc, color = Pred)) +
+  geom_point() +
+  scale_color_viridis_c(limits = c(-3.25, 2.5)) +
+  facet_wrap(~ Approach) +
+  theme_bw(base_size = 14)
+```
+
+### Std. Ers.
+
+```{r}
+#| echo: false
+#| label: fig-test_y_se
+#| fig-align: center
+#| fig-cap: "Standard Errors for the direct and big data (LNBH) approaches."
+
+test_dat$direct <- preds_direct$se.fit
+test_dat$bigdata <- preds_bigdata$se.fit
+test_dat_long <- test_dat |>
+  pivot_longer(cols = c(direct, bigdata), names_to = "Approach", values_to = "StdErr") |>
+  mutate(Approach = factor(Approach, levels = c("direct", "bigdata")))
+ggplot(test_dat_long, aes(x = xc, y = yc, color = StdErr)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  facet_wrap(~ Approach) +
+  theme_bw(base_size = 14)
+```
+
+
+### RMSPE
+
+Compute the root-mean-squared-prediction error on the test data for the direct and big data (LNBH) approaches
+
+```{r}
+rmspe_direct <- sqrt(mean((test_dat$y - test_dat$direct)^2))
+rmspe_direct
+rmspe_bigdata <- sqrt(mean((test_dat$y - test_dat$bigdata)^2))
+rmspe_bigdata
+```
+
+:::
+
+## Let's Recap
+
+For model fitting, spatial indexing (SPIN) breaks up the full data into subsets and pools the results
+
+* Provide `local` to `splm()` 
+* `local = TRUE` implements defaults
+
+For prediction, the local neighborhood (LNBH) approach uses a subset of the observed data to inform each prediction
+
+* Provide `local` to `predict()` or `augment()`
+* `local = TRUE` implements defaults
+
+# Spatial Generalized Linear Models
+
+## The `moose` Data
+
+An `sf` object with data at 218 moose survey locations in the Togiak Region of Alaska, US
+
+```{r}
+moose
+```
+
+## Moose Presence
+
+```{r}
+#| echo: false
+#| label: fig-moose_pres
+#| fig-align: center
+#| fig-cap: "Moose presence in the Togiak Region."
+
+ggplot(moose, aes(color = presence)) +
+  geom_sf() +
+  scale_color_viridis_d() +
+  theme_bw(base_size = 14)
+```
+
+## The Need for a GLM
+
+Moose presence is binary, so the errors can't possibly be (near) Gaussian!
+
+* For one thing, they are bounded between -1 and 1
+
+## The GLM
+
+A generalized linear model (GLM) models, linearly, a function of the **mean** ($\text{E}(y)$, or $\mu$) of the response
+
+$$ f(\mu) = \beta_0 + \beta_1 x_1 + ... + \beta_p x_p$$
+
+* $f(\cdot)$ is called a link function
+
+$$ \mu = f^{-1}(\beta_0 + \beta_1 x_1 + ... + \beta_p x_p)$$
+
+* $f^{-1}(\cdot)$ is called an inverse link function
+
+## The Spatial GLM
+
+The spatial GLM adds back $\tau$ and $\epsilon$ to the linear scale
+
+$$ f(\mu) = \beta_0 + \beta_1 x_1 + ... + \beta_p x_p + \tau + \epsilon$$
+
+* $\tau$ and $\epsilon$ influence the response mean
+* $\text{Cov}(\tau) = \sigma^2_{de}f(h, \phi)$
+* $\text{Cov}(\epsilon) = \sigma^2_{ie}I\{h = 0\}$
+
+## The Log Odds Link
+
+The log odds link function is used for binary data 
+
+$$ \log(\mu / (1 - \mu)) = \beta_0 + \beta_1x_1 + \beta_2 x_2 + \tau + \epsilon $$
+
+* Sometimes $p$ is used instead of $\mu$ (for a proportion)
+
+## The Expit Inverse Link
+
+The inverse link function is the expit function
+
+$$ \mu = \frac{\exp(\beta_0 + \beta_1x_1 + \beta_2 x_2 + \tau + \epsilon)}{1 + \exp(\beta_0 + \beta_1x_1 + \beta_2 x_2 + \tau + \epsilon)} \\ = \frac{1}{1 + \exp(-[\beta_0 + \beta_1x_1 + \beta_2 x_2 + \tau + \epsilon])}$$
+
+## Spatial GLMs with `spglm()`
+
+The `spglm()` function extends `glm()` and `splm()`:
+
+* The `family` argument describes the response type
+
+```{r}
+spgmod <- spglm(
+  formula = presence ~ elev * strat,
+  family = binomial,
+  data = moose,
+  spcov_type = "spherical"
+)
+```
+
+For fitting details, see @ver2024marginal
+
+## Interpreting Slope Coefficients
+
+In a GLM, slope coefficients are interpreted on the link (here, log odds) scale
+
+```{r}
+tidy(spgmod)
+```
+
+## Other `broom` Functions
+
+The other `broom` functions work similarly
+
+```{r}
+glance(spgmod)
+```
+
+```{r}
+augment(spgmod)
+```
+
+## Other Fit Metrics
+
+Area under the receiver operator characteristic (AUROC) curve:
+```{r}
+AUROC(spgmod)
+```
+
+Leave-one-out cross validation (on the response scale):
+```{r}
+loocv(spgmod)
+```
+
+## The `moose_preds` Data
+
+```{r}
+moose_preds
+```
+
+## The `moose_preds` Data
+
+```{r}
+#| echo: false
+#| label: fig-moose_pres_pred
+#| fig-align: center
+#| fig-cap: "Moose observed data and prediction locations."
+
+ggplot() +
+  geom_sf(data = moose) +
+  geom_sf(data = moose_preds, color = "orange", shape = 17) +
+  theme_bw(base_size = 14)
+```
+
+## Spatial Prediction
+
+Predicting the underlying **mean** probability of moose presence (not the response)
+
+```{r}
+preds <- predict(spgmod, newdata = moose_preds, type = "response")
+head(preds)
+```
+
+```{r}
+augment(spgmod, newdata = moose_preds, interval = "prediction")
+```
+
+## Spatial Prediction
+
+```{r}
+#| include: false
+
+moose$.fitted <- fitted(spgmod)
+moose_preds$.fitted <- preds
+```
+
+```{r}
+#| echo: false
+#| label: fig-moose_fit_pred
+#| fig-align: center
+#| fig-cap: "Fitted values and predictions for moose presence probability."
+
+ggplot() +
+  geom_sf(data = moose, aes(color = .fitted)) +
+  geom_sf(data = moose_preds, aes(color = .fitted), shape = 17) +
+  scale_color_viridis_c(limits = c(0, 1)) +
+  theme_bw(base_size = 14)
+```
+
+## Other GLM Families
+
+```{r}
+#| echo: false
+#| label: tab-glm
+#| tbl-cap: "Generalized linear model response variable types, families, and link functions supported by `spmodel`."
+
+dat <- tibble(
+  type = c("binary", "count", "count", "proportion", "skewed", "skewed"),
+  family = c("binomial", "poisson", "nbinomial", "beta", "Gamma", "inverse.gaussian"),
+  link = c("logit", "log", "log", "logit", "log", "log")
+)
+dat |>
+  kbl() |>
+  kable_classic()
+```
+
+## Let's Recap
+
+Spatial generalized models are useful for highly non-Gaussian spatial data
+
+* Response types include binary, count, proportion, and skewed data
+
+`spglm()` for model fitting and `predict()` (or `augment()`) for prediction
+
+* `spglm()` builds upon `glm()` to account for spatial covariance
+* Helper functions (e.g., `summary()`) defined for `splm()` objects are also defined for `spglm()` objects
+
+## Session Information
+
+```{r}
+sessionInfo()
+```
+
+# Disclaimer
+
+## Disclaimer
+
+The views expressed in this workshop are those of the authors and do not necessarily represent the views or policies of the U.S. Environmental Protection Agency or the U.S. National Oceanic and Atmospheric Administration. Any mention of trade names, products, or services does not imply an endorsement by the U.S. government, the U.S. Environmental Protection Agency, or the U.S. National Oceanic and Atmospheric Administration. The U.S. Environmental Protection Agency and the U.S. National Oceanic and Atmospheric Administration do not endorse any commercial products, services, or enterprises.
+
+# References
+
+::: {#refs}
+:::
