@@ -1,0 +1,303 @@
+---
+title: "cito"
+author: "Maximilian Pichler"
+date: "2026-02-02"
+output: html_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Installation
+```{r}
+# devtools::install_github('citoverse/cito') # development version
+# devtools::install_github(repo = "TheoreticalEcology/EcoData", dependencies = F, build_vignettes = F) # additional data
+library(EcoData) # for elefant data
+library(cito)
+library(torch)
+library(ggplot2)
+set.seed(42)
+```
+
+## Fully-connected Neural Networks
+
+### Classification and Regression tasks
+Loss function, which "likelihood" to use
+
+Regression - continuous response variables
+```{r}
+nn.fit = dnn(Sepal.Width~Sepal.Length+Petal.Length, data = iris, loss = "mse", batchsize = 30L) # Mean squared error
+
+nn.fit = dnn(Sepal.Width~Sepal.Length+Petal.Length, data = iris, loss = "mse", batchsize = 30L, device = "mps") # change device mps for mac apple silicon and cuda for NVIDIA GPUs
+
+predictions = predict(nn.fit)
+plot(iris$Sepal.Width, predictions)
+abline(c(0, 1))
+
+print(nn.fit)
+coef(nn.fit)
+```
+
+```{r}
+saveRDS(nn.fit, file = "mymodel.RDS")
+nn.fit = readRDS(file = "mymodel.RDS")
+```
+
+
+- Epochs == iterations, DNN are trained via batch stochastic gradient descent. With n = 150 and bs = 30L, one epoch consists of 5 optimization steps!
+- lr = learning rate, stepsize of the gradient optimizer
+- Plot on the right side, loss during training, should go down!
+
+
+```{r}
+plot(nn.fit)
+```
+
+Classification - binary or multiclass
+```{r}
+nn.fit = dnn(Species~Sepal.Width+Petal.Length, data = iris, loss = "cross-entropy") 
+predict(nn.fit) # predict on the scale of the link
+predict(nn.fit, type = "response") # predict on the scale of the response
+```
+
+```{r}
+pred = predict(nn.fit, type = "response") # probabilities that sum up to 1 over the rows
+mean(1*(apply(pred, 1, which.max) == as.integer(iris$Species)))
+```
+
+### Architecture
+
+Regression - continuous response variables
+```{r}
+nn.fit = dnn(Sepal.Width~Sepal.Length+Petal.Length, data = iris, loss = "mse", hidden = c(5, 5)) # Mean squared error
+plot(nn.fit)
+```
+
+```{r}
+nn.fit = dnn(Sepal.Width~Sepal.Length+Petal.Length, data = iris, loss = "mse", hidden = c(50, 50)) # Mean squared error
+plot(nn.fit)
+```
+
+- `hidden` = architecture, each element corresponds to one hidden layer
+- Rule of thumb? It is hard to say, we need a specific size so that our model can approximate any function...
+- My suggestion is to keep it to 2-3 hidden layers with 50 to 200 neurons
+
+
+### Convergence 
+#### Learning Rate
+
+Problem: First-order gradient descent, high sensitivity to learning rate (=step size of the optimizer)!
+  
+If learning rate is too low or too high, optimizer does not find into a good local minima
+
+Baseline loss == Intercept only model, the model should get at least better than the baseline loss!
+
+```{r}
+set.seed(42)
+nn.fit = dnn(Sepal.Width~Sepal.Length+Petal.Length, data = iris, loss = "mse", lr = 0.0000001) # Mean squared error
+```
+
+Learning rate is an important hyperparameter!
+
+
+#### Scaling
+```{r}
+nn.fit = dnn(Sepal.Width~Sepal.Length+Petal.Length, data = iris, loss = "mse", lr = 0.0000001) # Mean squared error
+```
+
+
+### Overfitting
+
+```{r}
+set.seed(42)
+# SDM - Predicting Elephant occurrences
+elephant = EcoData::elephant
+indices = sample.int(nrow(elephant$occurenceData), 500)
+df = elephant$occurenceData[indices, ]
+df$Presence = as.integer(df$Presence)
+head(df)
+```
+Overfitting --> our model overfits to the data, hence generalize poorly to new data. 
+
+```{r}
+nn.fit = dnn(Presence~., 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 500L)
+```
+
+Validation data can be used to monitor/detect overfitting:
+  
+```{r}
+nn.fit = dnn(Presence~., 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 500L,
+             validation = 0.3)
+```
+
+Regularization and/or early stopping prevent overfitting:
+
+- Regularization: l1 (LASSO) and l2 (Ridge) (lambda and alpha parameters in cito), dropout 
+
+```{r}
+nn.fit = dnn(Presence~., 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 500L,
+             lambda = 0.001, # regularization strength
+             alpha = 0.8, # weighting between l1 and l2 (80% l1)
+             validation = 0.3)
+coef(nn.fit)[[1]][[3]] |> fields::image.plot()
+```
+
+
+```{r}
+nn.fit = dnn(Presence~., 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 500L,
+             dropout = 0.3,
+             validation = 0.3)
+```
+
+Both approaches are sota, usually we use a combination of the two. 
+
+- Early stopping: stop training when validation loss starts to increase
+
+```{r}
+nn.fit = dnn(Presence~., 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 500L,
+             lambda = 0.001, # regularization strength
+             alpha = 0.2, # weighting between l1 and l2 (20% l1)
+             validation = 0.3, 
+             early_stopping = 10L) # number of epochs to wait until training is aborted
+```
+
+### Hyperparameter tuning
+Hyperparameters (learning rate, regularization parameters) should be tuned under Cross-Validation and not manually. 
+
+cito will tune hyperparameters that are flagged with `=tune()` under cross-validation, will then select the best set of hyperparameters and return a final model that was trained on that best set of hyperparameters
+
+
+```{r}
+nn.fit = dnn(Presence~., 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 500L,
+             lambda = tune(),
+             alpha = 0.2, # 
+             validation = 0.3,
+             early_stopping = 10L) # number of epochs to wait until training is aborted
+```
+
+`tune` is a function, custom values or possible ranges can be passed 
+
+Tuning history:
+
+```{r}
+nn.fit$tuning
+```
+
+Tuning setup (how many hyperparameter samples, number of splits in the cross-validation, parallelization, etc.) are set in `tuning = config_tuning(...)`
+
+```{r}
+nn.fit = dnn(Presence~., 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 500L,
+             lambda = tune(),
+             alpha = 0.2, # 
+             validation = 0.3,
+             early_stopping = 10L,
+             tuning = config_tuning(CV = 3L, 
+                                    steps = 5L) # number of random samples from the hyperparameter space, here 5 random lambda values
+) 
+```
+
+Architecture can be also tuned but we discourage from doing that, the hyperparameter space is just too complex/large and there are interactions with other hyperparameters such as regularization or learning rate. We suggest to tune mostly lambda, alpha, and the learning rate!
+  
+### Inference / Explaining 
+
+Two reasons:
+- We want to infer the predictive patterns in the data
+- Reliability of the model, the right predictions because of the right reasons
+  
+  
+```{r}
+nn.fit = dnn(Presence~bio1+bio2+bio15, 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 50L)
+
+m2 = glm(Presence~bio1+bio2+bio15, data = df, family = "binomial")
+```
+
+`summary` will calculate:
+  
+- Feature importance == permutation importance (similar to the variable importance in random forest)
+- average conditional effects (ACE) == approximation of linear effects
+- (std of ACE == non-linearity of the effects (will be removed))
+
+```{r}
+summary(nn.fit, type = "link")
+coef(m2)
+car::Anova(m2)
+```
+
+ACE are not perfect for non-linear effects, accumulated local effect plots (and partial dependency plots) are typically used for non-linear relationships:
+  
+```{r}
+ALE(nn.fit)
+plot(effects::allEffects(m2))
+```
+
+standard errors / p-values can be generated via bootstrapping (expensive!):
+
+```{r}
+nn.fit = dnn(Presence~bio1+bio2+bio15, 
+             data = df, 
+             loss = "bernoulli", 
+             lr = 0.001, 
+             hidden = c(200L, 200L), 
+             optimizer = "ignite_adam",
+             epochs = 50L,
+             bootstrap = 20L, 
+             bootstrap_parallel = 5L)
+```
+
+```{r}
+summary(nn.fit)
+```
+
+```{r}
+ALE(nn.fit)
+```
+
