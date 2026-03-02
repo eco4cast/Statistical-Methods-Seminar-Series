@@ -1,0 +1,946 @@
+---
+title: "ecostat seminar: estar package"
+author: "Ludmilla Figueiredo"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+This notebook adapts code from [Figueiredo & Radchuk (2026)](https://doi.org/10.5281/zenodo.18388783) to showcase how to use the [`estar` package](https://doi.org/10.32614/CRAN.package.estar).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(estar)
+library(tidyverse)
+library(MARSS)
+library(hesim)
+
+# Function to reorganize results of calculation of metrics
+flatten_metric_lists <- function(metric_09_list,
+                                 metric_44_list,
+                                 metric) {
+  flat_df <- full_join(
+    metric_09_list |>
+      # join gps of the same pair of replicates
+      map(\(df) reduce(df, full_join,
+                       by = c("gp", metric))) |>
+      # join all
+      reduce(full_join,
+             by = c("gp", metric)) |>
+      dplyr::mutate(treat = 0.9),
+    metric_44_list |>
+      # join gps of the same pair of replicates
+      map(\(df) reduce(df, full_join,
+                       by = c("gp", metric))) |>
+      # join all
+      reduce(full_join,
+             by = c("gp", metric)) |>
+      dplyr::mutate(treat = 44))
+}
+
+```
+
+# Preparing the data input
+
+## Data for functional stability metrics
+
+```{r}
+## load complete dataset
+data("aquacomm_fgps")
+
+## subset functional groups abundances in low and high concentrations
+## and organize in wide format for easier understanding
+boxdata_text.ldf <- aquacomm_fgps %>%
+  dplyr::select(time, treat, repli, herb, carn, detr) %>%
+  dplyr::filter(treat %in% c(0.0, 0.9, 44)) %>%
+  tidyr::pivot_longer(cols = c(herb, carn, detr),
+                      names_to = "gp", values_to = "abund")
+  
+# Create data frames listing the experiments (control and disturbances) and 
+# replicate numbers to facilitate mapping of functions (log ratio here, and 
+# stability metrics later) to lists
+experiments <- boxdata_text.ldf %>% 
+  dplyr::select(treat, repli) %>% 
+  unique
+control <- dplyr::filter(experiments, treat == 0)
+disturbances_09 <- dplyr::filter(experiments, treat == 0.9)
+disturbances_44 <- dplyr::filter(experiments, treat == 44)
+
+# Lists of permutation of all replicate numbers of control experiments with all 
+# disturbance experiments
+# Concentrations are separate for simpler mapping
+pairs_list_09 <- crossing(
+  control_treat = control$treat,
+  control_repli = control$repli,
+  dist_treat = disturbances_09$treat,
+  dist_repli = disturbances_09$repli) %>% 
+  group_split(control_treat, control_repli, 
+              dist_treat, dist_repli)
+pairs_list_44 <- crossing(
+  control_treat = control$treat,
+  control_repli = control$repli,
+  dist_treat = disturbances_44$treat,
+  dist_repli = disturbances_44$repli) %>% 
+  group_split(control_treat, control_repli, 
+              dist_treat, dist_repli)
+```
+
+## Data for compositional stability metrics
+
+```{r}
+compo_stability <- function(pairs_list, metric){
+  compo_list <- pairs_list |>
+    purrr::map(\(pair) {
+      comms <- full_join(dplyr::filter(boxdata_text.ldf,
+                                       treat == pair$control_treat,
+                                       repli == pair$control_repli),
+                         dplyr::filter(boxdata_text.ldf,
+                                       treat == pair$dist_treat,
+                                       repli == pair$dist_repli)) |> 
+        dplyr::select(-repli)
+      
+      control_comm <- comms |>
+        dplyr::filter(treat == 0) |>
+        dplyr::select(-treat) |>
+        tidyr::pivot_wider(names_from = gp,
+                           values_from = abund)
+      dist_comm <- comms |>
+        dplyr::filter(treat != 0) |>
+        dplyr::select(-treat) |>
+        tidyr::pivot_wider(names_from = gp,
+                           values_from = abund)
+      if (metric =="inv"){
+        invariability(
+          type = "compositional",
+          metric_tf = c(0.14,56),
+          comm_d = dist_comm,
+          comm_b = control_comm,
+          comm_t = "time")
+      } else if (metric =="res"){
+        resistance(
+          type = "compositional",
+          res_tf = c(0.14,28),
+          res_time = "max",
+          comm_d = dist_comm,
+          comm_b = control_comm,
+          comm_t = "time")
+      } else if (metric =="rate"){
+        recovery_rate(
+          type = "compositional",
+          metric_tf = c(28, 56),
+          comm_d = dist_comm,
+          comm_b = control_comm,
+          comm_t = "time")
+      } else if (metric =="ext"){
+        recovery_extent(
+          type = "compositional",
+          t_rec = 28,
+          comm_d = dist_comm,
+          comm_b = control_comm,
+          comm_t = "time")
+      } else if (metric =="persist"){
+        persistence(
+          type = "compositional",
+          b = "input",
+          metric_tf = c(28, 56),
+          comm_d = dist_comm,
+          comm_b = control_comm,
+          comm_t = "time",
+          low_lim = 0.5,
+          high_lim = 0.9)
+      } else if (metric =="oev"){
+        oev(
+          type = "compositional",
+          metric_tf = c(0.14, 56),
+          comm_d = dist_comm,
+          comm_b = control_comm,
+          comm_t = "time")
+      } else {
+        NA
+      }
+    }
+    )
+  return(compo_list)
+}
+```
+
+# Functional stability 
+
+## Invariability
+
+```{r}
+# Map invariability() to the  baseline-treatment pairs of replicates of the 
+# treatment with 0.9mu/L
+abund_inv_09_list <- pairs_list_09 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund) %>% 
+                   dplyr::filter(!if_any(starts_with("treat"), is.na))
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     inv = invariability(
+                       type = "functional",
+                       mode = "cv",
+                       b = "input",
+                       response = "lrr",
+                       metric_tf = c(0.14,56),
+                       vd_i = "treat0.9",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, inv)) %>% 
+                   unique
+               }
+               )
+  )
+
+# Map invariability() to the  baseline-treatment pairs of replicates of the 
+# treatment with 44mu/L
+abund_inv_44_list <- pairs_list_44 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp)|>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund) %>% 
+                   dplyr::filter(!if_any(starts_with("treat"), is.na))
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     inv = invariability(
+                       type = "functional",
+                       mode = "cv",
+                       b = "input",
+                       response = "lrr",
+                       metric_tf = c(0.14, 56),
+                       vd_i = "treat44",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, inv)) %>% 
+                   unique
+               }
+               )
+  )
+
+
+abund_inv_df <- flatten_metric_lists(abund_inv_09_list,
+                                     abund_inv_44_list,
+                                     "inv") 
+
+abund_inv_df %>% 
+  group_by(gp, treat) %>% 
+  summarize(mean = mean(inv, na.rm = TRUE),
+            sd = sd(inv, na.rm = TRUE))
+```
+
+```{r eval=FALSE}
+# Example of how invariablity can be calculated for a single replicate
+compo_inv_09_list <- compo_stability(pairs_list_09, "inv")
+compo_inv_44_list <- compo_stability(pairs_list_44, "inv")
+full_join(data.frame(inv = unlist(compo_inv_09_list),
+                     treat = 0.9),
+          data.frame(inv = unlist(compo_inv_44_list),
+                     treat = 44)) %>% 
+  dplyr::group_by(treat) %>% 
+  summarise(mean = mean(inv),
+            sd = sd(inv))
+```
+
+## Resistance
+
+```{r}
+abund_res_09_list <- pairs_list_09 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- 
+                   group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 group_wide |>
+                   dplyr::mutate(
+                     res = resistance(
+                       type = "functional",
+                       b = "input",
+                       res_mode = "lrr",
+                       res_time = "max",
+                       res_tf = c(0,14, 28),
+                       vd_i = "treat0.9",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, res)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_res_44_list <- pairs_list_44 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     res = resistance(
+                       type = "functional",
+                       b = "input",
+                       res_mode = "lrr",
+                       res_time = "max",
+                       res_tf = c(0.14, 28),
+                       vd_i = "treat44",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, res)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_res_df <- flatten_metric_lists(abund_res_09_list,
+                                     abund_res_44_list,
+                                     "res")
+
+abund_res_df %>% 
+  group_by(gp, treat) %>% 
+  summarize(mean = mean(res, na.rm = TRUE),
+            sd = sd(res, na.rm = TRUE))
+```
+
+
+```{r eval=FALSE}
+compo_res_09_list <- compo_stability(pairs_list_09, "res")
+compo_res_44_list <- compo_stability(pairs_list_44, "res")
+full_join(data.frame(res = unlist(compo_res_09_list),
+                     treat = 0.9),
+          data.frame(res = unlist(compo_res_44_list),
+                     treat = 44)) %>% 
+  dplyr::group_by(treat) %>% 
+  summarise(mean = mean(res),
+            sd = sd(res))
+```
+
+### Rate of recovery
+
+```{r}
+abund_rate_09_list <- pairs_list_09 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     rate = recovery_rate(
+                       type = "functional",
+                       response = "lrr",
+                       b = "input",
+                       metric_tf = c(28, 56),
+                       vd_i = "treat0.9",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, rate)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_rate_44_list <- pairs_list_44 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     rate = recovery_rate(
+                       type = "functional",
+                       response = "lrr",
+                       b = "input",
+                       metric_tf = c(28, 56),
+                       vd_i = "treat44",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, rate)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_rate_df <- flatten_metric_lists(abund_rate_09_list,
+                                      abund_rate_44_list,
+                                      "rate")
+
+abund_rate_df %>% 
+  group_by(gp, treat) %>% 
+  summarize(mean = mean(rate, na.rm = TRUE),
+            sd = sd(rate, na.rm = TRUE))
+```
+
+```{r}
+compo_rate_09_list <- compo_stability(pairs_list_09, "rate")
+compo_rate_44_list <- compo_stability(pairs_list_44, "rate")
+full_join(data.frame(rate = unlist(compo_rate_09_list),
+                     treat = 0.9),
+          data.frame(rate = unlist(compo_rate_44_list),
+                     treat = 44)) %>% 
+  dplyr::group_by(treat) %>% 
+  summarise(mean = mean(rate),
+            sd = sd(rate))
+```
+ 
+### Extent of recovery
+
+```{r}
+abund_ext_09_list <- pairs_list_09 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     ext = recovery_extent(
+                       type = "functional",
+                       b = "input",
+                       t_rec = 28,
+                       response = "lrr",
+                       vd_i = "treat0.9",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, ext)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_ext_44_list <- pairs_list_44 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     ext = recovery_extent(
+                       type = "functional",
+                       b = "input",
+                       t_rec = 28,
+                       response = "lrr",
+                       vd_i = "treat44",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, ext)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_ext_df <- flatten_metric_lists(abund_ext_09_list,
+                                     abund_ext_44_list,
+                                     "ext")
+
+abund_ext_df %>% 
+  group_by(gp, treat) %>% 
+  summarize(mean = mean(ext, na.rm = TRUE),
+            sd = sd(ext, na.rm = TRUE))
+```
+
+```{r}
+compo_ext_09_list <- compo_stability(pairs_list_09, "ext")
+compo_ext_44_list <- compo_stability(pairs_list_44, "ext")
+full_join(data.frame(ext = unlist(compo_ext_09_list),
+                     treat = 0.9),
+          data.frame(ext = unlist(compo_ext_44_list),
+                     treat = 44)) %>% 
+  dplyr::group_by(treat) %>% 
+  summarise(mean = mean(ext),
+            sd = sd(ext))
+```
+
+### Persistence
+
+```{r}
+abund_persist_09_list <- pairs_list_09 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     persist = persistence(
+                       type = "functional",
+                       b = "input",
+                       metric_tf = c(28, 56),
+                       vd_i = "treat0.9",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide,
+                       na_rm = FALSE
+                     )
+                   ) |>
+                   dplyr::select(c(gp, persist)) %>% 
+                   unique
+               }
+               )
+  )
+abund_persist_44_list <- pairs_list_44 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |>
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     persist = persistence(
+                       type = "functional",
+                       b = "input",
+                       metric_tf = c(28, 56),
+                       vd_i = "treat44",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide,
+                       na_rm = FALSE
+                     )
+                   ) |>
+                   dplyr::select(c(gp, persist)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_persist_df <- flatten_metric_lists(abund_persist_09_list,
+                                         abund_persist_44_list,
+                                         "persist")
+
+abund_persist_df %>% 
+  group_by(gp, treat) %>% 
+  summarize(mean = mean(persist, na.rm = TRUE),
+            sd = sd(persist, na.rm = TRUE))
+```
+
+```{r}
+compo_persist_09_list <- compo_stability(pairs_list_09, "persist")
+compo_persist_44_list <- compo_stability(pairs_list_44, "persist")
+full_join(data.frame(persist = unlist(compo_persist_09_list),
+                     treat = 0.9),
+          data.frame(persist = unlist(compo_persist_44_list),
+                     treat = 44))  %>% 
+  dplyr::group_by(treat) %>% 
+  summarise(mean = mean(persist),
+            sd = sd(persist))
+```
+
+### Overall Ecological Vulnerability
+
+```{r}
+abund_oev_09_list <- pairs_list_09 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |> ## all of them will be covered by the list
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     oev = oev(
+                       type = "functional",
+                       response = "lrr",
+                       metric_tf = c(0.14, 56),
+                       vd_i = "treat0.9",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, oev)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_oev_44_list <- pairs_list_44 |>
+  purrr::map(\(pair)
+             full_join(dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$control_treat,
+                                     repli == pair$control_repli,
+                                     abund > 0),
+                       dplyr::filter(boxdata_text.ldf,
+                                     treat == pair$dist_treat,
+                                     repli == pair$dist_repli,
+                                     abund > 0)) |> 
+               dplyr::select(-repli) |>
+               dplyr::group_split(gp) |>
+               purrr::map(\(group) {
+                 group_wide <- group |>
+                   tidyr::pivot_wider(names_from = treat,
+                                      names_prefix = "treat",
+                                      values_from = abund)
+                 
+                 group_wide |>
+                   dplyr::mutate(
+                     oev = oev(
+                       type = "functional",
+                       response = "lrr",
+                       metric_tf = c(0.14, 56),
+                       vd_i = "treat44",
+                       td_i = "time",
+                       vb_i = "treat0",
+                       tb_i = "time",
+                       d_data = group_wide,
+                       b_data = group_wide
+                     )
+                   ) |>
+                   dplyr::select(c(gp, oev)) %>% 
+                   unique
+               }
+               )
+  )
+
+abund_oev_df <- flatten_metric_lists(abund_oev_09_list,
+                                     abund_oev_44_list,
+                                     "oev")
+
+abund_oev_df %>% 
+  group_by(gp, treat) %>% 
+  summarize(mean = mean(oev, na.rm = TRUE),
+            sd = sd(oev, na.rm = TRUE))
+```
+
+```{r}
+compo_oev_09_list <- compo_stability(pairs_list_09, "oev")
+compo_oev_44_list <- compo_stability(pairs_list_44, "oev")
+full_join(data.frame(oev = unlist(compo_oev_09_list),
+                                     treat = 0.9),
+                          data.frame(oev = unlist(compo_oev_44_list),
+                                     treat = 44)) %>% 
+  dplyr::group_by(treat) %>% 
+  summarise(mean = mean(oev),
+            sd = sd(oev))
+```
+
+
+# Jacobian stability 
+
+```{r cache=TRUE}
+marss_matrix_list <- aquacomm_fgps %>%
+  dplyr::select(time, treat, repli, herb, carn, detr) %>%
+  dplyr::filter(treat %in% c(0.0, 0.9, 44)) %>% 
+  dplyr::filter(time >= 0 & time <= 56) %>% 
+  ungroup() %>% 
+  dplyr::mutate_at(vars(herb, carn, detr), 
+                   ~MARSS::zscore(.)) %>% 
+  dplyr::mutate(across(c(herb, carn, detr),
+                       ~dplyr::na_if(., 0))) %>% 
+  tidyr::pivot_longer(cols = c(herb, carn, detr),
+                      names_to = "gp",
+                      values_to = "abund_z") %>%
+  group_split(treat, repli)  %>% 
+  purrr::map(~ dplyr::select(., time, gp, repli, abund_z)  %>% 
+               unique()  %>% 
+               tidyr::pivot_wider(id_cols = c(gp, repli),
+                                  names_from = time, values_from = "abund_z", 
+                                  names_prefix = "time ") %>%
+               dplyr::mutate(row_name = paste(gp, repli, sep = "_")) %>%
+               dplyr::select(-c(gp, repli)) %>% 
+               tibble::column_to_rownames(var = "row_name") %>% 
+               as.matrix())
+
+marss_list <- marss_matrix_list %>% 
+  purrr::map(~ MARSS(.,
+                     list(B = "unconstrained",
+                          U = "zero", A = "zero",
+                          Z = "identity",
+                          Q = "diagonal and equal", 
+                          R = matrix(list(0), 3, 3),
+                          tinitx = 1),
+                     method = "BFGS"))
+
+
+names(marss_list) <- paste0("repli_", experiments$repli) # each replicate numbers has a single treatment, so we can track
+
+(B_list <- marss_list %>% 
+    purrr::map(~extractB(.,
+                         states_names = c("Herbivores", "Carnivores", "Detrivores"))))
+```
+
+```{r}
+### Reactivity 
+#----
+react <- B_list %>% 
+  purrr::map(reactivity)  
+(react_df <- react %>%
+    unlist(use.names = TRUE) %>% 
+    data.frame(value = .,
+               #treat = c(0, 0.9, 44),
+               metric = "react") %>% 
+    rownames_to_column(var = "repli") %>% 
+    dplyr::mutate(treat = case_when(
+      str_detect(repli, "2|3|5|11") ~ 0,
+      str_detect(repli, "4|10") ~ 0.9,
+      str_detect(repli, "6|9") ~ 44)))
+
+### Maximal amplification
+#----
+maxamp <- B_list |>
+  purrr::map(max_amp)
+(maxamp_df <- maxamp %>%
+    unlist(use.names = TRUE) %>% 
+    data.frame(value = .,
+               metric = "maxamp") %>% 
+    rownames_to_column(var = "repli") %>% 
+    dplyr::mutate(treat = case_when(
+      str_detect(repli, "2|3|5|11") ~ 0,
+      str_detect(repli, "4|10") ~ 0.9,
+      str_detect(repli, "6|9") ~ 44
+    )))
+
+### Initial resilience
+#----
+initresil <- B_list |>
+  purrr::map(init_resil)
+(initresil_df <- initresil %>%
+    unlist(use.names = TRUE) %>% 
+    data.frame(value = .,
+               metric = "initresil") %>% 
+    rownames_to_column(var = "repli") %>% 
+    dplyr::mutate(treat = case_when(
+      str_detect(repli, "2|3|5|11") ~ 0,
+      str_detect(repli, "4|10") ~ 0.9,
+      str_detect(repli, "6|9") ~ 44
+    )))
+
+### Asymptotic resilience
+#----
+asymptresil <- B_list |>
+  purrr::map(asympt_resil)
+(asymptresil_df <- asymptresil %>%
+    unlist(use.names = TRUE) %>% 
+    data.frame(value = .,
+               metric = "asymptresil") %>% 
+    rownames_to_column(var = "repli") %>% 
+    dplyr::mutate(treat = case_when(
+      str_detect(repli, "2|3|5|11") ~ 0,
+      str_detect(repli, "4|10") ~ 0.9,
+      str_detect(repli, "6|9") ~ 44)))
+
+### Stochastic invariability
+#----
+stochvar <- B_list |>
+  purrr::map(stoch_var)
+(stochvar_df <- stochvar %>%
+    unlist(use.names = TRUE) %>% 
+    data.frame(value = .,
+               metric = "stochvar") %>% 
+    rownames_to_column(var = "repli") %>% 
+    dplyr::mutate(treat = case_when(
+      str_detect(repli, "2|3|5|11") ~ 0,
+      str_detect(repli, "4|10") ~ 0.9,
+      str_detect(repli, "6|9") ~ 44)))
+
+full_join(react_df, maxamp_df) %>% 
+  full_join(., initresil_df) %>% 
+  full_join(., asymptresil_df) %>% 
+  full_join(., stochvar_df) %>%
+  dplyr::filter(treat != 0) %>%
+  dplyr::group_by(treat, metric) %>% 
+  dplyr::summarise(mean_value = mean(value),
+                   sd_value = stats::sd(value)) %>% 
+  dplyr::mutate(
+    treat = forcats::fct_recode(
+      factor(treat),
+      Low = "0.9",
+      High = "44"
+    )
+  ) %>%
+  dplyr::mutate(
+    metric = forcats::fct_recode(
+      factor(
+        metric,
+        levels = c("asymptresil", "initresil", 
+                   "react", "", "maxamp", "stochvar")
+      ),
+      "Asymptotic\nresilience" = "asymptresil", 
+      "Initial\nresilience" = "initresil", 
+      Reactivity = "react", 
+      "Maximal\namplification" = "maxamp", 
+      "Stochastic\nvariability" = "stochvar"
+    )
+  )
+```
