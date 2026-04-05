@@ -1,5 +1,5 @@
 ---
-title: 'Demo 1: Endangered tidewater gobies'
+title: 'Demo: Endangered tidewater gobies'
 output: pdf_document
 ---
 
@@ -40,6 +40,7 @@ dim(goby_data$count)
 ```
 
 Number of primary samples (sites) = 39
+
 Maximum number of secondary samples (replicates per site) = 22
 
 These are the number of gobies in each seine sample, at each site.
@@ -243,7 +244,7 @@ Now on to interpreting the site-level covariates:
 `beta` is the parameter in the model that scales the sensitivity of eDNA samples, relative to traditional samples, and it is site specific and a function of our covariates:
 
 $$
-\beta_i = \alpha_1 + \alpha_2 \times FilterTime_i + \alpha_3 \times Salinity_i
+\beta_i = \alpha_1 + \alpha_2 \times \text{FilterTime}_i + \alpha_3 \times \text{Salinity}_i
 $$
 As `beta` increases, the sensitivity of eDNA sampling decreases. So a positive regression coefficient would indicate an inverse relationship between the value of the covariate and the sensitivity of eDNA.
 
@@ -269,7 +270,7 @@ Here, detecting presence refers to producing at least one true positive eDNA det
 This is calculated for an average site:
 
 $$
-\beta_i = \alpha_1 + \alpha_2 \times FilterTime_i + \alpha_3 \times Salinity_i
+\beta_i = \alpha_1 + \alpha_2 \times \text{FilterTime}_i + \alpha_3 \times \text{Salinity}_i
 $$
 $$
 \beta_i = \alpha_1 + \alpha_2 \times 0 + \alpha_3 \times 0
@@ -332,7 +333,7 @@ These are the shape parameters of a beta distribution that reflects our prior be
 
 The default parameters give us a prior for p10 that is relatively uninformative:
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 p10_prior <- rbeta(10000, shape1 = 1, shape2 = 20)
 
 ggplot() +
@@ -349,9 +350,9 @@ With this prior, 99% of the probability density is less than 0.2.
 
 We could keep this prior relatively uninformative, or we could use data to create the prior, perhaps from negative controls. 
 
-For example, let’s say you used 25 negative qPCR controls during eDNA data processing. You can assume that the probability of a false positive is less than $1 / 25 = 0.04$. To reflect this data, you could create a prior where the $probability(p10 > 0.04)$ is low:
+For example, let’s say you used 25 negative qPCR controls during eDNA data processing. You can assume that the probability of a false positive is less than $1 / 25 = 0.04$. To reflect this data, you could create a prior where the $\text{probability}(p10 > 0.04)$ is low:
 
-```{r}
+```{r, warning = FALSE, message = FALSE}
 p10_negative_control <- rbeta(n = 10000, shape1 = 1, shape2 = 100)
 
 ggplot() +
