@@ -436,6 +436,6 @@ prior_plot + posterior_plot + plot_layout(ncol = 2)
 ```
 
 ```{r dh-figure, echo=FALSE}
-knitr::include_graphics("prior_sensitivity.png")
+knitr::include_graphics("figures/prior_sensitivity.png")
 ```
 

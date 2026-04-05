@@ -1,12 +1,6 @@
----
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 # eDNAjoint EFI Statistical Methods Seminar
 
-<img src="logo.png" align="right" height="200" style="float:right; height:200px;" dpi="700"/>
+<img src="figures/logo.png" align="right" height="200" style="float:right; height:200px;" dpi="700"/>
 
 The package *eDNAjoint* is useful for interpreting observations from
 paired or semi-paired environmental DNA (eDNA) and traditional surveys.
