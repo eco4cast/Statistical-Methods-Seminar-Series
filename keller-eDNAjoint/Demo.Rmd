@@ -263,7 +263,7 @@ joint_summarize(goby_fit_cov1$model, par = "alpha")
 
 # Compare detection rates
 
-To compare the relative sensitivity of eDNA and traditional sampling, we can use `detection_plot()` to find the units of survey effort necessary to detect presence of the species. 
+To compare the relative sensitivity of eDNA and traditional sampling, we can use `detection_plot()` to find the units of survey effort necessary to detect presence of the species with $X$ probability. 
 
 Here, detecting presence refers to producing at least one true positive eDNA detection or catching at least one individual in a traditional survey.
 
@@ -275,6 +275,8 @@ $$
 $$
 \beta_i = \alpha_1 + \alpha_2 \times 0 + \alpha_3 \times 0
 $$
+
+The below function is calculating the number of water samples and seine net samples needed to detect goby presence (i.e., at least one true positive eDNA detection or at least one individual in a seine sample) with 0.9 probability, given $\mu$.
 
 ```{r}
 detection_plot(goby_fit_cov1$model, 
@@ -435,7 +437,5 @@ posterior_plot <- ggplot() +
 prior_plot + posterior_plot + plot_layout(ncol = 2)
 ```
 
-```{r dh-figure, echo=FALSE}
-knitr::include_graphics("figures/prior_sensitivity.png")
-```
+
 
