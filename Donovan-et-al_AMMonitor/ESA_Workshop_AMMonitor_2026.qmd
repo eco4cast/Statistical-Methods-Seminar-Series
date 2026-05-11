@@ -1,0 +1,275 @@
+---
+title: "ESA AMMonitor Workshop"
+format: html
+editor: visual
+---
+
+## Installing AMMonitor
+
+AMMonitor is available through USGS's GitLab:
+
+```{r code_repo, eval = FALSE}
+browseURL("https://code.usgs.gov/vtcfwru/ammonitor")
+```
+
+The ReadMe on this page includes a full overview of AMMonitor, including instructions for getting started. To install AMMonitor, run the following code. You'll need the *remotes* package and a GitLab PAT:
+
+```{r install_ammonitor, eval = FALSE}
+
+# Increase the timeout time
+options(timeout = 300)
+
+# Install AMMonitor from GitLab
+remotes::install_gitlab(
+  repo = "vtcfwru/ammonitor@2.2.0",
+  auth_token = Sys.getenv("GITLAB_PAT"),  
+  host = "code.usgs.gov",  
+  build_vignettes = FALSE,  
+  dependencies = TRUE,
+  upgrade = "never"
+)
+```
+
+Alternatively, the compiled software is available at <https://code.usgs.gov/vtcfwru/ammonitor/-/releases>. The package can then be installed by going to R Studio's "Packages" tab, clicking "Install", and then selecting "Install from Package Archive File" and navigating to the downloaded folder.
+
+![](images/clipboard-2068964357.png)
+
+Once AMMonitor is installed, you can load it to make all of its functions available using `library()`:
+
+```{r load_pkg}
+library(AMMonitor)
+```
+
+## AMMonitor Tutorials
+
+AMMonitor includes a suite of 20 *learnr* tutorials covering all of the package's functionality. You can see a full list of the tutorials by running:
+
+```{r list_tutorials}
+
+learnr::available_tutorials(package = "AMMonitor")
+```
+
+Today we'll be covering the basics of AMMonitor, but refer to these tutorials for more details about other functions, workflows, etc! You can start with the intro tutorial:
+
+```{r tut_ex, eval = FALSE}
+learnr::run_tutorial(
+  name = "intro",
+  package = "AMMonitor"
+)
+```
+
+## Setting Up a New Project
+
+To start a new AMMonitor project, we'll need to set up two key components: the directory structure and the database.
+
+### Directory Structure
+
+The AMMonitor directory structure provides a standardized, organized way to track the many files associated with a monitoring project. It can be created with the `ammCreateDirectories()` function. We'll create a new test project in our temporary directory for this example:
+
+```{r create_dirs}
+
+# Create the AMMonitor directory structure in the tempdir
+proj_fp <- ammCreateDirectories(
+  amm_dirname = "myProject",
+  filepath = tempdir()
+)
+```
+
+Let's take a look at the directory structure:
+
+```{r list_dirs}
+list.dirs(
+  proj_fp,
+  full.names = FALSE,
+  recursive = FALSE)
+```
+
+We're going to focus on a few key folders, including:
+
+- **database:** Where the project's SQLite database will be stored
+
+- **photos** and **recordings:** Store media that's been registered in the database
+
+Other folders stores analysis information, covariate data, project settings, and files not yet added to the database.
+
+### Database
+
+Now that we've set up our project directories, we can create a new AMMonitor database with `dbCreate()`. We'll name our database "myProject.sqlite" and put it in the "database" folder of our project.
+
+```{r create_db}
+
+# Create a new database for our project
+dbCreate(
+  new_db_name = "myProject.sqlite",
+  new_db_filepath = file.path(proj_fp, "database"),
+  db_source = "default"
+)
+
+```
+
+The AMMonitor database is a SQLite relational database with a series of tables for organizing remote monitoring data. In a relational database, tables are connected via keys that ensure consistency across tables. In the example below, we can see that each visit is associated with a given person, equipment, and location ID.
+
+![](images/clipboard-2243076886.png)
+
+We can set a connection to the database using `dbSetCon()`, then interact with it using the *DBI* package. For example, let's look at all of the tables:
+
+```{r list_tbls}
+
+# Connect to our new database
+conx <- dbSetCon(file.path(proj_fp, "database", "myProject.sqlite"))
+
+# List the AMMonitor tables
+DBI::dbListTables(conx)
+```
+
+You can see how all of these tables relate to each other in the AMMonitor tutorials. For this demonstration, we'll focus on a few key tables:
+
+- **people, locations,** and **equipment:** Document who is working on a project, where monitoring is occurring, and the monitoring equipment used.
+
+- **visits:** A visit is an instance of a person going to a location to deploy, check, or pull a piece of monitoring equipment at a given time.
+
+- **media:** Stores records of photos and/or recordings collected. All media are associated with a visit, allowing us to link any file to where and how it was collected.
+
+- **annotations:** Stores manual labels (aka tags) made on collected media by users, such as species identifications.
+
+- **models,** **modeloutputs,** and **modelverifications:** Store information on machine-learning models used to analyze media and the associated outputs of those models. Model outputs can then be reviewed and verified by users.
+
+These basic pieces are all you need to start an AMMonitor project! To see how it all works in more detail, let's look at a small demo database.
+
+## Demo Database
+
+The AMMonitor demo database is a small example project used by our tutorials. You can create a copy to test with and explore using `ammCreateMiniDemo()`:
+
+```{r create_demo}
+
+# Create demo in a temporary directory
+demo_fp <- ammCreateMiniDemo(filepath = tempdir())
+```
+
+We can now look at a project with some populated folders. For example, we can check our photos folder to see what data we may have collected:
+
+```{r demo_photos}
+
+# List files in our demo project's photos folder
+list.files(file.path(demo_fp, "photos"))
+```
+
+We can see that we have 25 photos collected from various monitoring locations! To get more information about these photos and what's in them, we can look in the database. With AMMonitor's standard directory structure, we know that the database can be found in the database folder and connected to.
+
+```{r demo_con}
+
+# Connect to the database
+demo_con <- dbSetCon(file.path(demo_fp, "database", "demo.sqlite"))
+```
+
+Now that we have a database connection, we can look at records. Let's start with the visits table:
+
+```{r visit_tbl}
+
+DBI::dbReadTable(demo_con, "visits")
+```
+
+Here we can see that a set of cameras and recorders were deployed, checked for data, and removed from a set of three locations. We'd expect to see media associated with our check and pull visits, so let's take a look. Note that we can also capture a table as an R dataframe, allowing us to interact with it directly in R.
+
+```{r media_tbl}
+media <- DBI::dbReadTable(demo_con, "media")
+
+media
+```
+
+Here we have a small set of media associated with our various cameras, and one example of audio. Note that each media entry includes a visit ID (fk_visitid), allowing it to be associated with a given place and time, as well as a precise date for that media.
+
+## Shiny App
+
+All of these data can also be examined and interacted with in AMMonitor's Shiny app: let's take a look at the app and actually examine our media!
+
+```{r app, eval = FALSE}
+launchApp(demo_fp)
+```
+
+## USGS ScienceBase
+
+USGS's research data repository, with full public access. Each release must pass a rigorous peer review process, after which it receives a globally unique DOI and becomes publicly available.
+
+![](images/sciencebase.png)
+
+The AMMonitor project has 18+ publicly available data releases on ScienceBase to date.
+
+![](images/sb_ammonitor.png)
+
+Each data release contains explicit metadata along with all data associated with the monitoring project (raw media files and everything stored in the database). Personally identifiable information was removed, and location coordinates are given with bounding boxes rather than exact points.
+
+![](images/sb_datarelease.png)
+
+## Rehydrate an AMMonitor project from ScienceBase
+
+Any user can recreate the original AMMonitor project from an AMMonitor data release on ScienceBase. All you need is the item number from the URL of the release.
+
+![](images/sb_url.png)
+
+"Rehydrate" the database, downloading all data from the release and recreating an AMMonitor database from the original project. Here, we are recreating the Green Mountain National Forest Volume 1 release. You may recreate any AMMonitor project listed on ScienceBase, but remember to replace the sbItemNum argument with the correct Item Number and to update the projectName.
+
+```{r, eval = FALSE}
+AMMonitor::sbRehydrate(
+  ammPath = getwd(),
+  sbItemNum = "663cdf96d34e77890839e178",
+  projectName = "gmnf_rehydrate"   
+  ) 
+```
+
+Take a look at the rehydrated database. Notice how the 'people' table has no personal information for project team members. View any other tables from the project's database, such as the 'annotations' table (where species tags are recorded by people).
+
+```{r, eval = FALSE}
+# connect to the rehydrated database
+
+# choose the database file, in the 'database' folder
+fp <- file.choose() 
+conx <- AMMonitor::dbSetCon(fp) 
+
+# View the people table 
+View(DBI::dbReadTable(conx, 'people')) 
+
+# View the annotations from the project 
+View(DBI::dbReadTable(conx, 'annotations'))
+```
+
+AMMonitor includes summary functions for creating generic reports from a monitoring project. Let's demonstrate how to get summary tables and plots from this rehydrated database.
+
+```{r, eval = FALSE}
+# get summary data for 2018-2019
+summary_data <- AMMonitor::dbGetSummaryData(
+  con = conx,
+  m_dates = c("2018-01-01", "2019-12-31") 
+  )  
+
+# get tables 
+tables <- AMMonitor::dbTableSummary(
+  summary_data = summary_data,
+  key_species = "Moose" )
+
+tables$survey_effort_year
+tables$annotations_media_location_year_keysp  
+
+# get plots 
+plots <- AMMonitor::dbPlotSummary( 
+  summary_data = summary_data )  
+
+plots$gg_media_type_year_hist
+plots$gg_annotations_year
+```
+
+## Participate with AMMonitor
+
+We welcome your feedback, questions, and contributions to help improve AMMonitor. The source code, documentation, and development updates are available through [AMMonitor repository](https://code.usgs.gov/vtcfwru/ammonitor?utm_source=chatgpt.com).
+
+You can use the repository to:
+
+- Report bugs or technical issues
+
+- Submit feature requests or suggestions
+
+- Ask questions about package functionality or workflows
+
+- Share feedback from your own use of AMMonitor
+
+Community participation and user feedback are valuable for improving the package and supporting future development.
