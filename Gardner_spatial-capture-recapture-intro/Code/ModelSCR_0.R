@@ -1,20 +1,24 @@
-##########################################
-###Model SCR0 for the bear data
-###Written and modified by Beth Gardner, updated 10/1/2026
-###
+#############################################
+##Statistical-Methods-Seminar-Series
+##SCR webinar 
+##Model SCR0 for the bear data in NIMBLE
+##Data from Gardner et al. 2009/2010
+##Written by Beth Gardner updated 10/1/2026
+#############################################
+
 
 library(nimble)    #load nimble
 library(coda)
 library(MCMCvis)
 
-##############################################################################
+#############################################
 ### SCR0 model in Nimble
 
 modelSCR0<- nimbleCode( {
 
   #priors
 psi~dunif(0,1) #inclusion probability
-p0~dbeta(1,1)  #detection probability
+g0~dbeta(1,1)  #detection probability
 sigma~dunif(0, 6)  #scale parameter, units of kms
 sigma2<-sigma*sigma
 
@@ -25,8 +29,8 @@ for(i in 1:M){  #M observed + augmented individuals
 
   for(j in 1:J){  #J traps
 		d2[i,j]<- pow(s[i,1]-X[j,1],2) + pow(s[i,2]-X[j,2],2)  #calculate the distance
-		p[i,j]<- z[i]*p0*exp(-d2[i,j]/(2*sigma2))              #detection function
-		y[i,j] ~ dbin(p[i,j], K) 
+		g[i,j]<- z[i]*g0*exp(-d2[i,j]/(2*sigma2))              #detection function
+		y[i,j] ~ dbin(g[i,j], K) 
 	}
 
 }
@@ -80,10 +84,10 @@ Sin[(nind+1):M,]<-cbind(runif(nz, Xl, Xu), runif(nz,Yl,Yu))
 
 data<-list(y=y)
 constants <- list(M=M,K=K, J=ntraps, Xl=Xl, Yl=Yl, Xu=Xu, Yu=Yu, X=X, area=areaX)
-params<-c('psi','p0','sigma', 'N', 'D')
+params<-c('psi','g0','sigma', 'N', 'D')
 
 inits = list(z=c(rep(1,nind), rbinom(nz,1,0.5)),psi=runif(1), s=Sin, 
-		sigma=runif(1,2,3),p0=runif(1))
+		sigma=runif(1,2,3),g0=runif(1))
 
 ##Using the nimbleMCMC function here to consolidate nimble code.
 ##This version takes about 1-5 minutes to run

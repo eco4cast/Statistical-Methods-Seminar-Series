@@ -1,7 +1,12 @@
-##########################################
-###Model SCRsex for the bear data (sex effect on lambda0 and sigma)
-###Original code written by Beth Gardner and modified 10/1/2026
-###
+#############################################
+##Statistical-Methods-Seminar-Series
+##SCR webinar 
+##Code to fit Model SCRsex to the bear data in NIMBLE
+##sex effect on g0 and sigma
+##Data from Gardner et al. 2009/2010
+##Written by Beth Gardner updated 10/1/2026
+#############################################
+
 
 library(nimble)   
 library(coda)
@@ -15,7 +20,7 @@ psi~dunif(0,1) #inclusion probability
 pi~dunif(0,1)  #sex ratio (probability of being female)
 
 for(t in 1:2){
-p0[t]~dbeta(1,1)  #detection probability
+g0[t]~dbeta(1,1)  #detection probability
 sigma[t]~dunif(0, 6)  
 sigma2[t]<-sigma[t]*sigma[t]
 }
@@ -29,8 +34,8 @@ SEX2[i] <- SEX[i] + 1  #add 1 so that we can index by the individual sex below
 
 for(j in 1:J){
 d2[i,j]<- pow(s[i,1]-X[j,1],2) + pow(s[i,2]-X[j,2],2)
- p[i,j]<- z[i]*p0[SEX2[i]]*exp(-d2[i,j]/(2*sigma2[SEX2[i]]))
- y[i,j] ~ dbin(p[i,j],K)
+ g[i,j]<- z[i]*g0[SEX2[i]]*exp(-d2[i,j]/(2*sigma2[SEX2[i]]))
+ y[i,j] ~ dbin(g[i,j],K)
 }
 }
 N<-sum(z[])
@@ -88,9 +93,9 @@ SEXin=c(rep(NA, nind), rbinom(nz, 1,0.5))
 
 data<-list(y=y,SEX=SEX)
 constants <- list(M=M,K=K, J=ntraps, Xl=Xl, Yl=Yl, Xu=Xu, Yu=Yu, X=X, area=areaX)
-params<-c('psi','p0','N', 'D', 'sigma', 'pi')
+params<-c('psi','g0','N', 'D', 'sigma', 'pi')
 inits = list(z=c(rep(1,nind), rbinom(nz,1,0.5)),psi=runif(1), s=Sin, SEX=SEXin,
-		pi=runif(1), sigma=runif(2,2,3),p0=runif(2))
+		pi=runif(1), sigma=runif(2,2,3),g0=runif(2))
 
 ##This version takes about >5 minutes to run, definitely needs longer, but it's not terrible!
 start<-Sys.time()
