@@ -6,7 +6,6 @@
 ##Written by Beth Gardner updated 10/1/2026
 #############################################
 
-
 library(nimble)    #load nimble
 library(coda)
 library(MCMCvis)
@@ -42,7 +41,7 @@ D<-N/area    #density of individuals in the state space
 ##Read in and prepare the data
 
 #load in the bear data
-load("Data/beardata.rda")
+load("Gardner_spatial-capture-recapture-intro/Data/beardata.rda")
 yarray<-beardata$bearArray  #array of bear captures by trap and occasion
 trapmat<-beardata$trapmat #trap coordinates, in UTMs/1000 (units = kms)
 
