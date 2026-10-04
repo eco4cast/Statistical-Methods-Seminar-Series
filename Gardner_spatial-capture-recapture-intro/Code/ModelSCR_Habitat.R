@@ -163,17 +163,11 @@ Rmodel <- nimbleModel(code = modelSCRhabitat,  #This builds the model in R, but 
 conf <- configureMCMC(Rmodel,monitors=params, 
                            control = list(adaptInterval = 200), thin=1) 
 
-conf$removeSamplers("s")
-for(i in 1:M){
-  conf$addSampler(target = c(paste("s[",i,", 1:2]", sep="")), type = "RW_block",
-                       control = list(adaptive=TRUE, adaptScaleOnly=TRUE, adaptInterval = 200 ), silent=TRUE) 
-  
-}
-conf$removeSamplers(c("b0", "b1"))
+#to adjust the samplers for b0 and b1 to improve convergence
+#conf$removeSamplers(c("b0", "b1"))
+#conf$addSampler(target = c("b0", "b1"), type = "RW_block")
+#conf$addSampler(target = c("b0", "b1"), type = 'AF_slice')
 
-conf$addSampler(target = c("b0", "b1"), 
-                    type = "RW_block", 
-                    control = list(adaptive=TRUE, adaptScaleOnly=TRUE,adaptInterval = 100))
 
 Rmcmc <- buildMCMC(conf)#Building the chains
 Cmodel <- compileNimble(Rmodel)#Compiles the model in c++
