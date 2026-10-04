@@ -20,25 +20,28 @@ We will also use the coda and MCMCvis packages in this demonstration.
 
 **Data** folder contains the data needed for all of the exercises: 
 
-beardata.rda which has the following:
+- beardata.rda which has the following:
 
-- trapmat - trap id, x location, y location (UTM coordinates divided by 1000, units are kms)
+  - trapmat - trap id, x location, y location (UTM coordinates divided by 1000, units are kms)
 
-- bearArray - 3D array of captures by individual, trap, occasion
+  - bearArray - 3D array of captures by individual, trap, occasion
 
-- flat - encounter data formatted for the R package secr
+  - flat - encounter data formatted for the R package secr
 
-- sex – the biological sex assigned to individuals 
+  - sex – the biological sex assigned to individuals 
 
-
+- forest_cover.tif
+  - Percent forest cover from NLCD dataset for 2006. Data originally at 30m resolution, resampled here to 500m resolution. UTM Zone 18N. 
 
 **Code** folder contains all the R scripts to run the exercises presented:
 
-- ModelSCR\_0.R which fits an SCR model with no covariates to the bear data
+- ModelSCR\_0.R - fits an SCR model with no covariates to the bear data
 
-- ModelSCR\_sex.R which fits an SCR model with sex as covariates on baseline detection and sigma to the bear data
+- ModelSCR\_sex.R - fits an SCR model with sex as covariates on baseline detection and sigma to the bear data
 
-- ModelSCR\_behavior.R which fits an SCR model with a one time behavior response to capture to the bear data
+- ModelSCR\_behavior.R - fits an SCR model with a one time behavior response to capture to the bear data
+  
+- ModelSCR\_habitat.R - fits an SCR model with an inhomogeneous point process where density varies as a function of forest cover
 
 
 
