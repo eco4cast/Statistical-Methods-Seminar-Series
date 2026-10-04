@@ -37,6 +37,13 @@ bear.cap <- make.capthist(as.data.frame(nb), trapdet, covnames=c("sex"),
 ## constant detection g0~1, sigma~1 and constant density
 fit.0 <- secr.fit(bear.cap, hcov = "sex",buffer=20000, trace = FALSE,
                   model = list(D ~ 1, g0 ~ 1, sigma ~ 1))
+
+#if you get an error that starts with:
+#Error: Error in function ibeta_derivative<long double>
+#(long double,long double,long double): Overflow Error10.
+#add this "details" line into your secr.fit call:
+"...details = list(fastproximity = FALSE),"
+
 predict(fit.0)
 
 ## estimate of sex specific detection parameters and constant density
