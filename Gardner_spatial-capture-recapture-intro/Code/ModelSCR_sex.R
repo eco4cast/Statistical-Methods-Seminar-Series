@@ -97,7 +97,9 @@ params<-c('psi','g0','N', 'D', 'sigma', 'pi')
 inits = list(z=c(rep(1,nind), rbinom(nz,1,0.5)),psi=runif(1), s=Sin, SEX=SEXin,
 		pi=runif(1), sigma=runif(2,2,3),g0=runif(2))
 
-##This version takes about >5 minutes to run, definitely needs longer, but it's not terrible!
+##This version takes about ~5 minutes to run
+##This version does not converge, will need longer run
+
 start<-Sys.time()
 
 samplesSex <- nimbleMCMC(

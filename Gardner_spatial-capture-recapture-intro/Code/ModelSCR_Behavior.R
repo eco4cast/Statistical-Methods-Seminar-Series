@@ -107,7 +107,7 @@ inits = list(z=c(rep(1,nind), rbinom(nz,1,0.5)), psi=runif(1), s=Sin,
              sigma=runif(1,2,3),alpha0=runif(1), alpha1=runif(1))
 
 
-##This version takes about 15 minutes to run, does not converge, will need longer run
+##This version takes about 5 minutes to run, does not converge, will need longer run
 start<-Sys.time()
 samplesB <- nimbleMCMC(
   code = modelSCRB,  
@@ -115,7 +115,7 @@ samplesB <- nimbleMCMC(
   constants = constants, 
   inits = inits,
   monitors = params,
-  niter = 4000,    
+  niter = 2000,    
   nburnin = 1000,
   nchains = 3,
   samplesAsCodaMCMC = TRUE,

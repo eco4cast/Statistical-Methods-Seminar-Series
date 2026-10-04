@@ -90,6 +90,8 @@ inits = list(z=c(rep(1,nind), rbinom(nz,1,0.5)),psi=runif(1), s=Sin,
 
 ##Using the nimbleMCMC function here to consolidate nimble code.
 ##This version takes about 1-5 minutes to run
+##This version does not converge, will need longer run
+
 start<-Sys.time()
 samples <- nimbleMCMC(
     code = modelSCR0,  
