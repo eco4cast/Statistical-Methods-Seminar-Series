@@ -11,8 +11,11 @@
 #Load packages
 library(nimble)
 library(coda)
-library(reshape2)
 library(MCMCvis)
+library(terra)
+library(raster)
+library(reshape2)
+
 
 ########################### Nimble Function #################################
 deregisterDistributions("dPointProcess")
@@ -164,9 +167,9 @@ conf <- configureMCMC(Rmodel,monitors=params,
                            control = list(adaptInterval = 200), thin=1) 
 
 #to adjust the samplers for b0 and b1 to improve convergence
-#conf$removeSamplers(c("b0", "b1"))
+conf$removeSamplers(c("b0", "b1"))
 #conf$addSampler(target = c("b0", "b1"), type = "RW_block")
-#conf$addSampler(target = c("b0", "b1"), type = 'AF_slice')
+conf$addSampler(target = c("b0", "b1"), type = 'AF_slice')
 
 
 Rmcmc <- buildMCMC(conf)#Building the chains
@@ -176,8 +179,8 @@ Cmcmc <- compileNimble(Rmcmc, project = Cmodel)#Compile in c++
 ##This version takes about 1-5 minutes to run, will need to run longer to converge
 start<-Sys.time()
 samplesHabitat <- runMCMC(Cmcmc,           #Run compiled model 
-                            niter = 5000,
-                            nburnin = 1000,
+                            niter = 50000,
+                            nburnin = 10000,
                             nchains = 3)
 end<-Sys.time()
 end-start
