@@ -10,11 +10,8 @@ To follow along with the coding demonstration, you will need the R package NIMBL
 
 
 
-We will also use the coda and MCMCvis packages in this demonstration.
-
-- install.packages("coda")
-
-- install.packages("MCMCvis")
+We will also use the coda and MCMCvis packages in this demonstration, and for the habitat script, you will need the terra, raster, and reshape2 packages.
+ - install.packages(c("coda", "MCMCvis", "terra", "raster", "reshape2"))
 
 **Still under construction**
 
