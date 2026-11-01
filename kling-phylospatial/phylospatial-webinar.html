@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<script src="phylospatial-webinar_files/libs/clipboard/clipboard.min.js"></script>
+<script src="phylospatial-webinar_files/libs/quarto-html/tabby.min.js"></script>
+<script src="phylospatial-webinar_files/libs/quarto-html/popper.min.js"></script>
+<script src="phylospatial-webinar_files/libs/quarto-html/tippy.umd.min.js"></script>
+<link href="phylospatial-webinar_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="phylospatial-webinar_files/libs/quarto-html/light-border.css" rel="stylesheet">
+<link href="phylospatial-webinar_files/libs/quarto-html/quarto-syntax-highlighting-5a2acb6f4ed5aeb23a104ba421924b87.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
+  <meta name="generator" content="quarto-1.9.38">
+
+  <meta name="author" content="Matthew Kling">
+  <meta name="dcterms.date" content="2026-11-02">
+  <title>Spatial phylogenetics with {phylospatial}</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="phylospatial-webinar_files/libs/revealjs/dist/reset.css">
+  <link rel="stylesheet" href="phylospatial-webinar_files/libs/revealjs/dist/reveal.css">
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+      vertical-align: middle;
+    }
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #97947a;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #97947a;  padding-left: 4px; }
+    div.sourceCode
+      { color: #f8f8f2; background-color: #2b2b2b; }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span { color: #f8f8f2; } /* Normal */
+    code span.al { color: #dcc6e0; } /* Alert */
+    code span.an { color: #d4d0ab; } /* Annotation */
+    code span.at { color: #ffd700; } /* Attribute */
+    code span.bn { color: #dcc6e0; } /* BaseN */
+    code span.bu { color: #f5ab35; } /* BuiltIn */
+    code span.cf { color: #ffa07a; } /* ControlFlow */
+    code span.ch { color: #abe338; } /* Char */
+    code span.cn { color: #ffa07a; } /* Constant */
+    code span.co { color: #d4d0ab; } /* Comment */
+    code span.cv { color: #d4d0ab; font-style: italic; } /* CommentVar */
+    code span.do { color: #d4d0ab; font-style: italic; } /* Documentation */
+    code span.dt { color: #dcc6e0; } /* DataType */
+    code span.dv { color: #dcc6e0; } /* DecVal */
+    code span.er { color: #dcc6e0; } /* Error */
+    code span.ex { color: #ffd700; } /* Extension */
+    code span.fl { color: #f5ab35; } /* Float */
+    code span.fu { color: #ffd700; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #d4d0ab; } /* Information */
+    code span.kw { color: #ffa07a; } /* Keyword */
+    code span.op { color: #00e0e0; } /* Operator */
+    code span.ot { color: #ffa07a; } /* Other */
+    code span.pp { color: #dcc6e0; } /* Preprocessor */
+    code span.sc { color: #00e0e0; } /* SpecialChar */
+    code span.ss { color: #abe338; } /* SpecialString */
+    code span.st { color: #abe338; } /* String */
+    code span.va { color: #f5ab35; } /* Variable */
+    code span.vs { color: #abe338; } /* VerbatimString */
+    code span.wa { color: #d4d0ab; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="phylospatial-webinar_files/libs/revealjs/dist/theme/quarto-6b4fbdc6c00b197e9be5dcd5922dd6b5.css">
+  <link href="phylospatial-webinar_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.css" rel="stylesheet">
+  <link href="phylospatial-webinar_files/libs/revealjs/plugin/reveal-menu/menu.css" rel="stylesheet">
+  <link href="phylospatial-webinar_files/libs/revealjs/plugin/reveal-menu/quarto-menu.css" rel="stylesheet">
+  <link href="phylospatial-webinar_files/libs/revealjs/plugin/quarto-support/footer.css" rel="stylesheet">
+  <style type="text/css">
+    .reveal div.sourceCode {
+      margin: 0;
+      overflow: auto;
+    }
+    .reveal div.hanging-indent {
+      margin-left: 1em;
+      text-indent: -1em;
+    }
+    .reveal .slide:not(.center) {
+      height: 100%;
+    }
+    .reveal .slide.scrollable {
+      overflow-y: auto;
+    }
+    .reveal .footnotes {
+      height: 100%;
+      overflow-y: auto;
+    }
+    .reveal .slide .absolute {
+      position: absolute;
+      display: block;
+    }
+    .reveal .footnotes ol {
+      counter-reset: ol;
+      list-style-type: none; 
+      margin-left: 0;
+    }
+    .reveal .footnotes ol li:before {
+      counter-increment: ol;
+      content: counter(ol) ". "; 
+    }
+    .reveal .footnotes ol li > p:first-child {
+      display: inline-block;
+    }
+    .reveal .slide ul,
+    .reveal .slide ol {
+      margin-bottom: 0.5em;
+    }
+    .reveal .slide ul li,
+    .reveal .slide ol li {
+      margin-top: 0.4em;
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide ul[role="tablist"] li {
+      margin-bottom: 0;
+    }
+    .reveal .slide ul li > *:first-child,
+    .reveal .slide ol li > *:first-child {
+      margin-block-start: 0;
+    }
+    .reveal .slide ul li > *:last-child,
+    .reveal .slide ol li > *:last-child {
+      margin-block-end: 0;
+    }
+    .reveal .slide .columns:nth-child(3) {
+      margin-block-start: 0.8em;
+    }
+    .reveal blockquote {
+      box-shadow: none;
+    }
+    .reveal .tippy-content>* {
+      margin-top: 0.2em;
+      margin-bottom: 0.7em;
+    }
+    .reveal .tippy-content>*:last-child {
+      margin-bottom: 0.2em;
+    }
+    .reveal .slide > img.stretch.quarto-figure-center,
+    .reveal .slide > img.r-stretch.quarto-figure-center {
+      display: block;
+      margin-left: auto;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-left,
+    .reveal .slide > img.r-stretch.quarto-figure-left  {
+      display: block;
+      margin-left: 0;
+      margin-right: auto; 
+    }
+    .reveal .slide > img.stretch.quarto-figure-right,
+    .reveal .slide > img.r-stretch.quarto-figure-right  {
+      display: block;
+      margin-left: auto;
+      margin-right: 0; 
+    }
+  </style>
+  <style>
+  .reveal pre { font-size: 0.68em; }
+  .reveal div.sourceCode, .reveal div.sourceCode pre, .reveal div.sourceCode pre code {
+    background-color: #000; color: #f0f0f0; border: none; }
+  .reveal div.sourceCode { border-radius: 4px; }
+  .reveal :not(pre) > code, .reveal :not(pre) > code * { color: #4758AB !important; }
+  .reveal .nulls table { font-size: 0.62em; }
+  #title-slide .title { margin-top: 2em; }
+  .reveal .nulls p { font-size: 0.8em; }
+  </style>
+</head>
+<body class="quarto-light">
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide" data-background-image="images/phylospatial-logo.png" data-background-position="50% 5%" data-background-size="180px" class="quarto-title-block center">
+  <h1 class="title">Spatial phylogenetics with {phylospatial}</h1>
+  <p class="subtitle">ESA Statistical Ecology / EFI webinar series</p>
+
+<div class="quarto-title-authors">
+<div class="quarto-title-author">
+<div class="quarto-title-author-name">
+Matthew Kling 
+</div>
+</div>
+</div>
+
+  <p class="date">November 2, 2026</p>
+</section>
+<section id="follow-along" class="slide level2">
+<h2>Follow along</h2>
+<ul>
+<li>Download files: <a href="https://github.com/eco4cast/Statistical-Methods-Seminar-Series/tree/main/kling-phylospatial" class="uri">https://github.com/eco4cast/Statistical-Methods-Seminar-Series/tree/main/kling-phylospatial</a></li>
+<li>Install packages:</li>
+</ul>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">"phylospatial"</span>, <span class="st">"nullcat"</span>, <span class="st">"ggplot2"</span>, <span class="st">"tidyterra"</span>, <span class="st">"patchwork"</span>,</span>
+<span id="cb1-2"><a href="" aria-hidden="true" tabindex="-1"></a>                   <span class="st">"prioritizr"</span>, <span class="st">"highs"</span>))</span>
+<span id="cb1-3"><a href="" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="" aria-hidden="true" tabindex="-1"></a><span class="co"># ps_dissim_focal() (section 5) needs the development version:</span></span>
+<span id="cb1-5"><a href="" aria-hidden="true" tabindex="-1"></a><span class="co"># install.packages("pak"); pak::pak("matthewkling/phylospatial")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="roadmap" class="slide level2">
+<h2>Roadmap</h2>
+<div class="columns">
+<div class="column" style="width:35%;">
+<ol type="1">
+<li>Concepts</li>
+<li>Data</li>
+<li>Diversity</li>
+<li>Significance</li>
+<li>Turnover</li>
+<li>Prioritization</li>
+</ol>
+</div><div class="column" style="width:65%;">
+<p><img data-src="images/workflow-full.png" height="760"></p>
+</div></div>
+</section>
+<section>
+<section id="concepts" class="title-slide slide level1 center">
+<h1>1. Concepts</h1>
+
+</section>
+<section id="what-is-spatial-phylogenetics" class="slide level2">
+<h2>What is spatial phylogenetics?</h2>
+<div class="columns">
+<div class="column" style="width:45%;">
+<p>Mapping the distribution of <strong>evolutionary history</strong> across landscapes, by combining a phylogeny with species distributions.</p>
+<ul>
+<li>Where is evolutionary diversity concentrated?</li>
+<li>Where are old or young lineages restricted?</li>
+<li>How does lineage composition change across space?</li>
+<li>Where should we protect it?</li>
+</ul>
+</div><div class="column" style="width:55%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/teaser-1.png" width="1050"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="why-measure-biodiversity-using-phylogeny" class="slide level2">
+<h2>Why measure biodiversity using phylogeny?</h2>
+<p><img data-src="images/pd-cartoon-3.png" height="720"></p>
+</section>
+<section id="why-measure-biodiversity-using-phylogeny-1" class="slide level2">
+<h2>Why measure biodiversity using phylogeny?</h2>
+
+<img data-src="images/pd-cartoon-4.png" style="width:100.0%" class="r-stretch"></section>
+<section id="most-phylodiversity-metrics-are-familiar-ones-applied-to-branches" class="slide level2">
+<h2>Most phylodiversity metrics are familiar ones, applied to branches</h2>
+<table class="caption-top">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Species-level</th>
+<th>Branch-level</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Richness: count of species</td>
+<td><strong>PD</strong>: total branch length present</td>
+</tr>
+<tr class="even">
+<td>Weighted endemism: species weighted by 1 / range size</td>
+<td><strong>PE</strong>: branch length weighted by 1 / range size</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="common-misconceptions" class="slide level2">
+<h2>Common misconceptions</h2>
+<table class="caption-top">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Misconception</th>
+<th>Reality</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Counting clades as well as species double-counts occurrences</td>
+<td>Each branch counts once, weighted by its own length: a clade adds only the history unique to it</td>
+</tr>
+<tr class="even">
+<td>Clade ranges are reconstructed ancestral ranges</td>
+<td>They are where a clade’s living descendants occur today</td>
+</tr>
+<tr class="odd">
+<td>High phylogenetic endemism means old lineages</td>
+<td>PE mixes branch length and range size; CANAPE separates neo- from paleo-endemism</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="every-clade-has-a-range" class="slide level2">
+<h2>Every clade has a range</h2>
+<p>A branch occurs wherever any of its descendants occurs.</p>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/clade-ranges-1.png" width="960" class="r-stretch"></section>
+<section id="ranges-dont-have-to-be-binary" class="slide level2">
+<h2>Ranges don’t have to be binary</h2>
+
+<img data-src="images/mee-fig1-clade-values.png" style="width:100.0%" class="r-stretch"><p>A clade’s value comes from its members: present if any are (binary), P = 1 − ∏(1 − p<sub>i</sub>) (probability), or the sum (abundance).</p>
+</section>
+<section id="quantitative-measures-paint-richer-pictures" class="slide level2">
+<h2>Quantitative measures paint richer pictures</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><strong>Thresholded ranges</strong></p>
+<p><img data-src="images/sysbot-thresholded.png" height="600"></p>
+</div><div class="column" style="width:50%;">
+<p><strong>Continuous ranges</strong></p>
+<p><img data-src="images/sysbot-continuous.png" height="600"></p>
+</div></div>
+<p>Moss neo- and paleo-endemism (Kling et al.&nbsp;2026, <em>Systematic Botany</em>).</p>
+</section>
+<section id="the-phylospatial-package" class="slide level2">
+<h2>The phylospatial package</h2>
+<div class="columns">
+<div class="column" style="width:75%;">
+<p>Spatial phylogenetic analysis in R, from data to conservation priorities</p>
+<ul>
+<li><strong>Quantitative data throughout:</strong> binary, probability, or abundance ranges</li>
+<li><strong>Spatial in and out:</strong> {terra} rasters, {sf} polygons, or plain matrices</li>
+<li><strong>One object, many analyses:</strong> diversity, null models, turnover, prioritization</li>
+<li><strong>Builds on</strong> {ape}, {vegan}, {nullcat}, {prioritizr}</li>
+</ul>
+<p>On CRAN · Kling (2025) <em>Methods in Ecology and Evolution</em></p>
+</div><div class="column" style="width:25%;">
+<p><img data-src="images/phylospatial-logo.png" style="width:90.0%"></p>
+</div></div>
+</section>
+<section id="other-options-for-pd-analyses-in-r" class="slide level2">
+<h2>Other options for PD analyses in R</h2>
+<p><img data-src="images/package-comparison-table.png" height="600"></p>
+<p>Many R packages compute PD across sites (Kling 2025, <em>MEE</em>, Table 1)</p>
+</section></section>
+<section>
+<section id="data" class="title-slide slide level1 center">
+<h1>2. Data</h1>
+
+</section>
+<section id="two-ingredients" class="slide level2">
+<h2>Two ingredients</h2>
+<p><code>phylospatial()</code> combines a tree and community data into one object, building a range for every branch.</p>
+<p><img data-src="images/workflow-data.png" height="560"></p>
+</section>
+<section id="a-toy-dataset-in-one-line" class="slide level2">
+<h2>A toy dataset in one line</h2>
+<p><code>ps_simulate()</code> generates a random dataset, useful for learning and testing.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="" aria-hidden="true" tabindex="-1"></a>sim <span class="ot">&lt;-</span> <span class="fu">ps_simulate</span>(<span class="at">n_tips =</span> <span class="dv">20</span>, <span class="at">data_type =</span> <span class="st">"probability"</span>)</span>
+<span id="cb2-2"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(sim, <span class="st">"comm"</span>, <span class="at">taxa =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>, <span class="at">nc =</span> <span class="dv">4</span>, <span class="at">axes =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+
+</div>
+<img data-src="phylospatial-webinar_files/figure-revealjs/simulate-1.png" width="960" class="r-stretch"></section>
+<section id="from-occurrence-points-to-a-grid" class="slide level2">
+<h2>From occurrence points to a grid</h2>
+<p><code>ps_grid()</code> turns occurrence records into an equal-area community grid. Raw records reflect sampling effort; modeled ranges smooth it out.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="" aria-hidden="true" tabindex="-1"></a>pts    <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">"data/moss_points.csv"</span>)  <span class="co"># species, lon, lat</span></span>
+<span id="cb3-2"><a href="" aria-hidden="true" tabindex="-1"></a>comm   <span class="ot">&lt;-</span> <span class="fu">ps_grid</span>(pts)                      <span class="co"># equal-area grid</span></span>
+<span id="cb3-3"><a href="" aria-hidden="true" tabindex="-1"></a>ps_pts <span class="ot">&lt;-</span> <span class="fu">phylospatial</span>(comm, ps<span class="sc">$</span>tree)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/grid-plot-points-1.png" width="675"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/grid-plot-model-1.png" width="675"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="building-the-moss-dataset" class="slide level2">
+<h2>Building the moss dataset</h2>
+<p>443 California moss species: occurrence probabilities from species distribution models on a 30 km grid, plus a phylogeny (Kling et al.&nbsp;2026, <em>Systematic Botany</em>). Both ship with the package; <code>moss()</code> is a one-line shortcut for the code below.</p>
+<div class="columns">
+<div class="column" style="width:62%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="" aria-hidden="true" tabindex="-1"></a>ext  <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">"extdata"</span>, <span class="at">package =</span> <span class="st">"phylospatial"</span>)</span>
+<span id="cb4-2"><a href="" aria-hidden="true" tabindex="-1"></a>comm <span class="ot">&lt;-</span> <span class="fu">rast</span>(<span class="fu">file.path</span>(ext, <span class="st">"moss_comm.tif"</span>))</span>
+<span id="cb4-3"><a href="" aria-hidden="true" tabindex="-1"></a>tree <span class="ot">&lt;-</span> ape<span class="sc">::</span><span class="fu">read.tree</span>(<span class="fu">file.path</span>(ext, <span class="st">"moss_tree.nex"</span>))</span>
+<span id="cb4-4"><a href="" aria-hidden="true" tabindex="-1"></a>ps   <span class="ot">&lt;-</span> <span class="fu">phylospatial</span>(comm, tree)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Community data type detected: probability</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="" aria-hidden="true" tabindex="-1"></a>ps</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>`phylospatial` object
+  - 884 lineages across 527 occupied sites (1116 total) 
+  - community data type: probability 
+  - branch length rescaling: sum1 
+  - site weights: equal 
+  - spatial data class: SpatRaster 
+  - dissimilarity data: none </code></pre>
+</div>
+</div>
+</div><div class="column" style="width:38%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(ps, <span class="st">"tree"</span>, <span class="at">type =</span> <span class="st">"fan"</span>,</span>
+<span id="cb8-2"><a href="" aria-hidden="true" tabindex="-1"></a>     <span class="at">show.tip.label =</span> <span class="cn">FALSE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/fan-tree-1.png" width="750"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="inside-a-phylospatial-object" class="slide level2">
+<h2>Inside a phylospatial object</h2>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(ps, <span class="at">max.level =</span> <span class="dv">1</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>List of 10
+ $ comm       : num [1:527, 1:884] 0.0154 0.0271 0.0582 0.2086 0.2531 ...
+  ..- attr(*, "dimnames")=List of 2
+ $ tree       :List of 4
+  ..- attr(*, "class")= chr "phylo"
+  ..- attr(*, "order")= chr "cladewise"
+ $ spatial    :S4 class 'SpatRaster' [package "terra"]
+ $ occupied   : int [1:527] 1 2 3 4 5 6 7 8 9 10 ...
+ $ n_sites    : int 1116
+ $ site_weight: NULL
+ $ data_type  : chr "probability"
+ $ clade_fun  :function (x)  
+  ..- attr(*, "srcref")= 'srcref' int [1:8] 129 30 129 56 30 56 3623 3623
+  .. ..- attr(*, "srcfile")=Classes 'srcfilealias', 'srcfile' &lt;environment: 0x904b597e0&gt; 
+ $ rescale    : chr "sum1"
+ $ dissim     : NULL
+ - attr(*, "class")= chr "phylospatial"</code></pre>
+</div>
+</div>
+</section></section>
+<section>
+<section id="diversity" class="title-slide slide level1 center">
+<h1>3. Diversity</h1>
+
+</section>
+<section id="diversity-and-endemism-metrics" class="slide level2">
+<h2>Diversity and endemism metrics</h2>
+<p><code>ps_diversity()</code> computes various measures of richness, divergence, and regularity, each in phylogenetic and species-level variations (<code>?ps_diversity</code> for the full list).</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="" aria-hidden="true" tabindex="-1"></a>div <span class="ot">&lt;-</span> <span class="fu">ps_diversity</span>(ps, <span class="at">metric =</span> <span class="fu">c</span>(<span class="st">"TD"</span>, <span class="st">"PD"</span>, <span class="st">"PE"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/diversity-all-1.png" width="1440" class="r-stretch"></section>
+<section id="richness-species-richness-pd-and-pe" class="slide level2">
+<h2>Richness: species richness, PD, and PE</h2>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/diversity-plot-1.png" width="960" class="r-stretch"><p>Each map scaled to its maximum. PD closely tracks richness; PE shifts weight toward places where range-restricted lineages concentrate.</p>
+</section>
+<section id="divergence-and-regularity" class="slide level2">
+<h2>Divergence and regularity</h2>
+<p>Beyond how <em>much</em> evolutionary history a site holds, <code>ps_diversity()</code> measures how it’s <em>structured</em>. <strong>Divergence</strong> (MPD): how distantly related co-occurring lineages are, on average. <strong>Regularity</strong> (VPD): how evenly spaced they are across the tree; low variance means evenly spaced lineages, high means clumped clusters of close relatives.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="" aria-hidden="true" tabindex="-1"></a>struct <span class="ot">&lt;-</span> <span class="fu">ps_diversity</span>(ps, <span class="at">metric =</span> <span class="fu">c</span>(<span class="st">"MPDT"</span>, <span class="st">"VPDT"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/div-structure-plot-1.png" width="1000" class="r-stretch"></section>
+<section id="which-part-of-evolutionary-history" class="slide level2">
+<h2>Which part of evolutionary history?</h2>
+<p>Recall that branch lengths can measure divergence, time, or diversification events. Tree scaling functions change which of those, and which part of history, the metrics weigh. Put the result in <code>ps$tree</code> and every metric follows.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="" aria-hidden="true" tabindex="-1"></a>tr <span class="ot">&lt;-</span> <span class="fu">rescale_tree</span>(ps<span class="sc">$</span>tree, <span class="st">"tip1"</span>)   <span class="co"># root-to-tip height = 1</span></span>
+<span id="cb13-2"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">slice_tree</span>(tr, <span class="at">min =</span> <span class="fl">0.5</span>)             <span class="co"># older half only</span></span>
+<span id="cb13-3"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">slice_tree</span>(tr, <span class="at">max =</span> <span class="fl">0.5</span>)             <span class="co"># recent half only</span></span>
+<span id="cb13-4"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">delta_tree</span>(tr, <span class="at">delta =</span> <span class="fl">0.3</span>)           <span class="co"># emphasize deep branches</span></span>
+<span id="cb13-5"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">delta_tree</span>(tr, <span class="at">delta =</span> <span class="dv">3</span>)             <span class="co"># emphasize recent branches</span></span>
+<span id="cb13-6"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">uniform_tree</span>(tr)                      <span class="co"># every branch counts equally</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/slice-trees-1.png" width="1536" class="r-stretch"></section></section>
+<section>
+<section id="significance" class="title-slide slide level1 center">
+<h1>4. Significance</h1>
+
+</section>
+<section id="is-there-more-pd-than-expected" class="slide level2">
+<h2>Is there more PD than expected?</h2>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/pd-td-1.png" width="825" class="r-stretch"><p>Raw PD mostly tracks richness. To see more, compare each site to a null expectation.</p>
+</section>
+<section id="null-models-test-hypotheses" class="slide level2">
+<h2>Null models test hypotheses</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<ol type="1">
+<li>Randomize the data many times, holding some features fixed</li>
+<li>Recompute the metric each time</li>
+<li>Compare observed to the null distribution</li>
+</ol>
+<p><strong>What you hold fixed defines the hypothesis.</strong></p>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/null-dist-plot-1.png" width="750"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="different-nulls-different-questions" class="slide level2">
+<h2>Different nulls, different questions</h2>
+<table class="caption-top">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Null model</th>
+<th>Holds fixed</th>
+<th>Randomizes</th>
+<th>Is the pattern unusual given…</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>"tip_shuffle"</code></td>
+<td>every range map</td>
+<td>which lineage owns each range</td>
+<td>the ranges, ignoring relatedness?</td>
+</tr>
+<tr class="even">
+<td><code>"curvecat"</code></td>
+<td>site richness, range sizes</td>
+<td>which species occur where</td>
+<td>richness and range sizes?</td>
+</tr>
+<tr class="odd">
+<td><code>"r0cat"</code></td>
+<td>site richness</td>
+<td>occurrences, range sizes</td>
+<td>richness alone?</td>
+</tr>
+<tr class="even">
+<td><code>"c0cat"</code></td>
+<td>range sizes</td>
+<td>occurrences, site richness</td>
+<td>range sizes alone?</td>
+</tr>
+</tbody>
+</table>
+<p>Matrix algorithms run on binary data (<code>fun = "nullcat"</code>) or quantitative data (<code>fun = "quantize"</code>); <code>fun = "nullmodel"</code> adds {vegan}’s options.</p>
+</section>
+<section id="randomizing-quantitative-data" class="slide level2">
+<h2>Randomizing quantitative data</h2>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/quantize-fig-1.png" width="1950" class="r-stretch"><p>Each site keeps its values; each species keeps its mix of strata. <code>quantize()</code> from <a href="https://matthewkling.github.io/nullcat/">{nullcat}</a></p>
+</section>
+<section id="how-many-iterations" class="slide level2">
+<h2>How many iterations?</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p>Swap-based nulls need enough swaps to forget the original data. <code>ps_suggest_n_iter()</code> runs several chains and suggests a burn-in, the minimum <code>n_iter</code> per null community.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="" aria-hidden="true" tabindex="-1"></a>iters <span class="ot">&lt;-</span> <span class="fu">ps_suggest_n_iter</span>(</span>
+<span id="cb14-2"><a href="" aria-hidden="true" tabindex="-1"></a>  ps, <span class="at">fun =</span> <span class="st">"quantize"</span>,</span>
+<span id="cb14-3"><a href="" aria-hidden="true" tabindex="-1"></a>  <span class="at">method =</span> <span class="st">"curvecat"</span>, <span class="at">n_iter =</span> <span class="fl">3e5</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p>Real analyses: <code>n_iter = iters</code>, <code>n_rand = 1000</code>.</p>
+</div><div class="column" style="width:50%;">
+<div class="cell" data-bigtext="true">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/n-iter-plot-1.png" width="900"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="running-a-randomization" class="slide level2">
+<h2>Running a randomization</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_rand()</code> compares each site’s metrics with randomized communities, returning a null quantile per site: green = more than expected, purple = less.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb15-2"><a href="" aria-hidden="true" tabindex="-1"></a>rand <span class="ot">&lt;-</span> <span class="fu">ps_rand</span>(</span>
+<span id="cb15-3"><a href="" aria-hidden="true" tabindex="-1"></a>  ps, <span class="at">metric =</span> <span class="fu">c</span>(<span class="st">"PD"</span>, <span class="st">"PE"</span>, <span class="st">"CE"</span>, <span class="st">"RPE"</span>),</span>
+<span id="cb15-4"><a href="" aria-hidden="true" tabindex="-1"></a>  <span class="at">fun =</span> <span class="st">"quantize"</span>, <span class="at">method =</span> <span class="st">"curvecat"</span>,</span>
+<span id="cb15-5"><a href="" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_rand =</span> <span class="dv">100</span>, <span class="at">n_iter =</span> <span class="fl">5e4</span>)  <span class="co"># ~30 s</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/rand-plot-1.png" width="1080"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="neo--and-paleo-endemism-canape" class="slide level2">
+<h2>Neo- and paleo-endemism (CANAPE)</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_canape()</code> classifies sites as centers of neo-, paleo-, mixed, or super-endemism, from the significance of PE, RPE, and CE in a randomization (Mishler et al.&nbsp;2014).</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="" aria-hidden="true" tabindex="-1"></a>canape <span class="ot">&lt;-</span> <span class="fu">ps_canape</span>(rand)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<ul>
+<li><strong>Neo-endemism</strong>: concentrations of short, range-restricted branches</li>
+<li><strong>Paleo-endemism</strong>: concentrations of long, range-restricted branches</li>
+<li>Patterns of where restricted lineages are today, not a direct test of how they got there</li>
+</ul>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/canape-plot-1.png" width="1080"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section></section>
+<section>
+<section id="turnover" class="title-slide slide level1 center">
+<h1>5. Turnover</h1>
+
+</section>
+<section id="what-does-phylogenetic-turnover-measure" class="slide level2">
+<h2>What does phylogenetic turnover measure?</h2>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/turnover-concept-1.png" width="2100" class="r-stretch"><p>Phylogenetic dissimilarity is the share of branch length <strong>not</strong> shared by two sites. Species turnover treats every pair of different species as equally different; phylogenetic turnover is low when sites hold close relatives, and high when they hold distant lineages.</p>
+</section>
+<section id="dissimilarity-from-a-focal-site" class="slide level2">
+<h2>Dissimilarity from a focal site</h2>
+<p><code>ps_dissim_focal()</code> maps how different every other site is from a focal location. Here, sites in the Sierra Nevada and the Mojave Desert.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="" aria-hidden="true" tabindex="-1"></a>focal <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_as_sf</span>(<span class="fu">data.frame</span>(<span class="at">lon =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">119.6</span>, <span class="sc">-</span><span class="dv">116</span>), <span class="at">lat =</span> <span class="fu">c</span>(<span class="fl">37.8</span>, <span class="fl">34.6</span>)),</span>
+<span id="cb17-2"><a href="" aria-hidden="true" tabindex="-1"></a>                      <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"lon"</span>, <span class="st">"lat"</span>), <span class="at">crs =</span> <span class="dv">4326</span>)</span>
+<span id="cb17-3"><a href="" aria-hidden="true" tabindex="-1"></a>d_focal <span class="ot">&lt;-</span> <span class="fu">ps_dissim_focal</span>(ps, focal)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/focal-plot-1.png" class="quarto-figure quarto-figure-center r-stretch" width="1056"></section>
+<section id="many-kinds-of-dissimilarity" class="slide level2">
+<h2>Many kinds of dissimilarity</h2>
+<p>A wide range of dissimilarity measures are available, including any {vegan} index and the turnover and nestedness components of Sorensen (Baselga &amp; Orme 2012).</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="" aria-hidden="true" tabindex="-1"></a>sierra <span class="ot">&lt;-</span> focal[<span class="dv">1</span>, ]</span>
+<span id="cb18-2"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">ps_dissim_focal</span>(ps, sierra, <span class="at">method =</span> <span class="st">"sorensen"</span>)             <span class="co"># default</span></span>
+<span id="cb18-3"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">ps_dissim_focal</span>(ps, sierra, <span class="at">method =</span> <span class="st">"sorensen_turnover"</span>)    <span class="co"># lineage replacement</span></span>
+<span id="cb18-4"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">ps_dissim_focal</span>(ps, sierra, <span class="at">method =</span> <span class="st">"sorensen_nestedness"</span>)  <span class="co"># richness differences</span></span>
+<span id="cb18-5"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">ps_dissim_focal</span>(ps, sierra, <span class="at">endemism =</span> <span class="cn">TRUE</span>)    <span class="co"># weight range-restricted branches</span></span>
+<span id="cb18-6"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">ps_dissim_focal</span>(ps, sierra, <span class="at">normalize =</span> <span class="cn">TRUE</span>)   <span class="co"># proportional composition</span></span>
+<span id="cb18-7"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">ps_dissim_focal</span>(ps, sierra, <span class="at">tips_only =</span> <span class="cn">TRUE</span>)   <span class="co"># species only, no tree</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/dissim-focal-1.png" width="1440" class="r-stretch"></section>
+<section id="an-asymmetric-index" class="slide level2">
+<h2>An asymmetric index</h2>
+<p><code>method = "focal_difference"</code> is the share of the focal site’s branch length missing from each other site. Unlike Sorensen, it ignores lineages the focal site lacks, so it shows where a site’s <em>own</em> lineages occur. For the lineage-poor desert site, they occur almost everywhere.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="" aria-hidden="true" tabindex="-1"></a>mojave <span class="ot">&lt;-</span> focal[<span class="dv">2</span>, ]</span>
+<span id="cb19-2"><a href="" aria-hidden="true" tabindex="-1"></a>d_mojave <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">ps_dissim_focal</span>(ps, mojave),</span>
+<span id="cb19-3"><a href="" aria-hidden="true" tabindex="-1"></a>              <span class="fu">ps_dissim_focal</span>(ps, mojave, <span class="at">method =</span> <span class="st">"focal_difference"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/focal-difference-plot-1.png" class="quarto-figure quarto-figure-center r-stretch" width="1008"></section>
+<section id="all-pairs-of-sites" class="slide level2">
+<h2>All pairs of sites</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_add_dissim()</code> computes dissimilarity between every pair of sites and stores the site × site matrix in the object, ready for the analyses that follow.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">ps_add_dissim</span>(ps)  <span class="co"># Sorensen</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><div class="column" style="width:50%;">
+<p><img data-src="images/dissim-dendrogram-matrix.png" height="740"></p>
+</div></div>
+</section>
+<section id="using-the-dissimilarity-matrix" class="slide level2">
+<h2>Using the dissimilarity matrix</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps$dissim</code> is an ordinary <code>dist</code> object, so any distance-based method applies:</p>
+<ul>
+<li>Mantel tests against geographic or environmental distance</li>
+<li>What drives turnover: GDM ({gdm})</li>
+<li>Group differences: PERMANOVA (<code>adonis2()</code>)</li>
+<li>Ordination and color (<code>ps_ordinate()</code>, <code>ps_rgb()</code>)</li>
+<li>Regionalization (<code>ps_regions()</code>)</li>
+</ul>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="" aria-hidden="true" tabindex="-1"></a>geo <span class="ot">&lt;-</span> <span class="fu">ps_geodist</span>(ps)</span>
+<span id="cb21-2"><a href="" aria-hidden="true" tabindex="-1"></a>mt <span class="ot">&lt;-</span> vegan<span class="sc">::</span><span class="fu">mantel</span>(ps<span class="sc">$</span>dissim, geo)</span>
+<span id="cb21-3"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">c</span>(mt<span class="sc">$</span>statistic, mt<span class="sc">$</span>signif), <span class="dv">3</span>)  <span class="co"># r, p</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.406 0.001</code></pre>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/decay-1.png" width="825"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="ordination" class="slide level2">
+<h2>Ordination</h2>
+<p><code>ps_ordinate()</code> reduces the dissimilarity matrix to a few axes that capture the main gradients in lineage composition (classical or nonmetric multidimensional scaling, or PCA).</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="" aria-hidden="true" tabindex="-1"></a>ord <span class="ot">&lt;-</span> <span class="fu">ps_ordinate</span>(ps, <span class="at">method =</span> <span class="st">"cmds"</span>, <span class="at">k =</span> <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+
+<img data-src="phylospatial-webinar_files/figure-revealjs/ordinate-plot-1.png" width="1152" class="r-stretch"></section>
+<section id="mapping-turnover-as-color" class="slide level2">
+<h2>Mapping turnover as color</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_rgb()</code> maps three ordination axes to red, green, and blue, so sites with similar colors have similar lineage composition.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="" aria-hidden="true" tabindex="-1"></a>rgb <span class="ot">&lt;-</span> <span class="fu">ps_rgb</span>(ps, <span class="at">method =</span> <span class="st">"nmds"</span>,</span>
+<span id="cb24-2"><a href="" aria-hidden="true" tabindex="-1"></a>              <span class="at">trans =</span> rank)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/rgb-plot-1.png" width="1080"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="phylogenetic-regions" class="slide level2">
+<h2>Phylogenetic regions</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_regions()</code> clusters sites into <code>k</code> phylogenetic regions; <code>ps_regions_eval()</code> compares how well different <code>k</code> fit.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="" aria-hidden="true" tabindex="-1"></a>regions <span class="ot">&lt;-</span> <span class="fu">ps_regions</span>(ps, <span class="at">k =</span> <span class="dv">6</span>,</span>
+<span id="cb25-2"><a href="" aria-hidden="true" tabindex="-1"></a>                      <span class="at">method =</span> <span class="st">"average"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">ps_regions_eval</span>(ps, <span class="at">k =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">15</span>,</span>
+<span id="cb26-2"><a href="" aria-hidden="true" tabindex="-1"></a>                <span class="at">method =</span> <span class="st">"average"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/regions-eval-1.png" width="750"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/regions-plot-1.png" width="1080"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section></section>
+<section>
+<section id="prioritization" class="title-slide slide level1 center">
+<h1>6. Prioritization</h1>
+
+</section>
+<section id="what-is-conservation-prioritization" class="slide level2">
+<h2>What is conservation prioritization?</h2>
+<p>Choosing <em>where</em> to add new protection, given limited resources.</p>
+<ul>
+<li><strong>Complementarity:</strong> a site’s value depends on what’s already protected and what other chosen sites already cover</li>
+<li><strong>Efficiency:</strong> maximize biodiversity gained per unit cost</li>
+<li><strong>Targets or benefits:</strong> aim to protect a set share of each feature’s range, or maximize total benefit with diminishing returns</li>
+</ul>
+<p>In phylospatial, the “features” are branches of the tree, so priorities favor sites that add evolutionary history not yet represented in protected areas.</p>
+</section>
+<section id="prioritization-inputs" class="slide level2">
+<h2>Prioritization inputs</h2>
+<p>Existing protection (<code>init</code>, from 0 to 1) and the relative cost of protecting each site, both on the moss grid (<code>ext</code> is the package data folder from earlier).</p>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="" aria-hidden="true" tabindex="-1"></a>init <span class="ot">&lt;-</span> <span class="fu">rast</span>(<span class="fu">file.path</span>(ext,</span>
+<span id="cb27-2"><a href="" aria-hidden="true" tabindex="-1"></a>                       <span class="st">"moss_protection.tif"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/inputs-protection-1.png" width="675"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="" aria-hidden="true" tabindex="-1"></a>pop  <span class="ot">&lt;-</span> <span class="fu">rast</span>(<span class="fu">file.path</span>(ext,</span>
+<span id="cb28-2"><a href="" aria-hidden="true" tabindex="-1"></a>                       <span class="st">"moss_popdens.tif"</span>))</span>
+<span id="cb28-3"><a href="" aria-hidden="true" tabindex="-1"></a>cost <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">log1p</span>(pop)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/inputs-cost-1.png" width="675"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="diminishing-returns" class="slide level2">
+<h2>Diminishing returns</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<ul>
+<li>A lineage’s benefit rises as more of its range is protected</li>
+<li><code>lambda</code> sets how fast the returns diminish</li>
+</ul>
+</div><div class="column" style="width:50%;">
+<div class="cell" data-bigtext="true">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_lambda</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/lambda-1.png" width="750"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="a-priority-ranking" class="slide level2">
+<h2>A priority ranking</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_prioritize()</code> ranks every site by its added conservation value, given existing protection, cost, and what earlier picks already protect. Rank 1 = top priority.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="" aria-hidden="true" tabindex="-1"></a>priority <span class="ot">&lt;-</span> <span class="fu">ps_prioritize</span>(</span>
+<span id="cb30-2"><a href="" aria-hidden="true" tabindex="-1"></a>  ps, <span class="at">lambda =</span> <span class="dv">1</span>, <span class="at">init =</span> init, <span class="at">cost =</span> cost)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/prioritize-plot-1.png" width="1080"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="how-much-does-each-step-buy" class="slide level2">
+<h2>How much does each step buy?</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_performance()</code> tracks how much of the tree reaches a protection target as sites are added in priority order: here, the fraction of branch length with at least 80% of its range protected.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="" aria-hidden="true" tabindex="-1"></a>perf <span class="ot">&lt;-</span> <span class="fu">ps_performance</span>(ps, priority,</span>
+<span id="cb31-2"><a href="" aria-hidden="true" tabindex="-1"></a>                       <span class="at">target =</span> <span class="fl">0.8</span>)</span>
+<span id="cb31-3"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(perf, <span class="at">yvar =</span> <span class="st">"cov80"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell" data-bigtext="true">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/performance-1.png" width="900"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section id="optimal-solutions-with-prioritizr" class="slide level2">
+<h2>Optimal solutions with {prioritizr}</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p><code>ps_prioritizr()</code> builds a {prioritizr} problem in which every branch is a feature with a range-protection target. A solver (e.g., {highs}) then finds the cheapest set of new sites that meets every target, rather than a ranking.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(prioritizr)</span>
+<span id="cb32-2"><a href="" aria-hidden="true" tabindex="-1"></a>prob <span class="ot">&lt;-</span> <span class="fu">ps_prioritizr</span>(</span>
+<span id="cb32-3"><a href="" aria-hidden="true" tabindex="-1"></a>  ps, <span class="at">init =</span> init, <span class="at">cost =</span> cost,</span>
+<span id="cb32-4"><a href="" aria-hidden="true" tabindex="-1"></a>  <span class="at">objective =</span> <span class="st">"min_set"</span>, <span class="at">target =</span> <span class="fl">0.3</span>)</span>
+<span id="cb32-5"><a href="" aria-hidden="true" tabindex="-1"></a>solution <span class="ot">&lt;-</span> <span class="fu">solve</span>(prob)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<ul>
+<li>Add any prioritizr constraints, penalties, or solvers</li>
+<li>See the earlier {prioritizr} webinar in this series</li>
+</ul>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="phylospatial-webinar_files/figure-revealjs/prioritizr-1.png" width="1080"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
+</section></section>
+<section>
+<section id="wrap-up" class="title-slide slide level1 center">
+<h1>Wrap-up</h1>
+
+</section>
+<section id="flexible-inputs.-one-object.-many-analyses." class="slide level2">
+<h2>Flexible inputs. One object. Many analyses.</h2>
+<p><img data-src="images/workflow-full.png" height="760"></p>
+</section>
+<section id="thank-you" class="slide level2">
+<h2>Thank you!</h2>
+<div class="columns">
+<div class="column" style="width:65%;">
+<ul>
+<li>Package website and vignettes: <a href="https://matthewkling.github.io/phylospatial/" class="uri">https://matthewkling.github.io/phylospatial/</a></li>
+<li>Code and issues: <a href="https://github.com/matthewkling/phylospatial" class="uri">https://github.com/matthewkling/phylospatial</a></li>
+<li>Kling (2025) <em>Methods in Ecology and Evolution</em>: <a href="https://doi.org/10.1111/2041-210X.70056" class="uri">https://doi.org/10.1111/2041-210X.70056</a></li>
+<li>Kling et al.&nbsp;(2026) <em>Systematic Botany</em>: <a href="https://doi.org/10.1600/036364426X17703284494638" class="uri">https://doi.org/10.1600/036364426X17703284494638</a></li>
+<li>Contact: <a href="mailto:matthew.kling@umontana.edu" class="email">matthew.kling@umontana.edu</a></li>
+</ul>
+<p><strong>Questions?</strong></p>
+</div><div class="column" style="width:35%;">
+<p><img data-src="images/phylospatial-logo.png" style="width:85.0%"></p>
+</div></div>
+
+</section></section>
+    </div>
+  <div class="quarto-auto-generated-content" style="display: none;">
+<div class="footer footer-default">
+
+</div>
+</div></div>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script>
+  <script src="phylospatial-webinar_files/libs/revealjs/dist/reveal.js"></script>
+  <!-- reveal.js plugins -->
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/quarto-line-highlight/line-highlight.js"></script>
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/pdf-export/pdfexport.js"></script>
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/reveal-menu/menu.js"></script>
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/reveal-menu/quarto-menu.js"></script>
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/quarto-support/support.js"></script>
+  
+
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/notes/notes.js"></script>
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/search/search.js"></script>
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/zoom/zoom.js"></script>
+  <script src="phylospatial-webinar_files/libs/revealjs/plugin/math/math.js"></script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+'controlsAuto': true,
+'previewLinksAuto': false,
+'pdfSeparateFragments': false,
+'autoAnimateEasing': "ease",
+'autoAnimateDuration': 1,
+'autoAnimateUnmatched': true,
+'jumpToSlide': true,
+'menu': {"side":"left","useTextContentForMissingTitles":true,"markers":false,"loadIcons":false,"custom":[{"title":"Tools","icon":"<i class=\"fas fa-gear\"></i>","content":"<ul class=\"slide-menu-items\">\n<li class=\"slide-tool-item active\" data-item=\"0\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.fullscreen(event)\"><kbd>f</kbd> Fullscreen</a></li>\n<li class=\"slide-tool-item\" data-item=\"1\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.speakerMode(event)\"><kbd>s</kbd> Speaker View</a></li>\n<li class=\"slide-tool-item\" data-item=\"2\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.overview(event)\"><kbd>o</kbd> Slide Overview</a></li>\n<li class=\"slide-tool-item\" data-item=\"3\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.togglePdfExport(event)\"><kbd>e</kbd> PDF Export Mode</a></li>\n<li class=\"slide-tool-item\" data-item=\"4\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.toggleScrollView(event)\"><kbd>r</kbd> Scroll View Mode</a></li>\n<li class=\"slide-tool-item\" data-item=\"5\"><a href=\"#\" onclick=\"RevealMenuToolHandlers.keyboardHelp(event)\"><kbd>?</kbd> Keyboard Help</a></li>\n</ul>"}],"openButton":true},
+'smaller': false,
+ 
+        // Display controls in the bottom right corner
+        controls: false,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: false,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'edges',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: 'c/t',
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: true,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: true,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: false,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: false,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'linear',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: false,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'none',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'none',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1600,
+
+        height: 900,
+
+        // Factor of the display size that should remain empty around the content
+        margin: 0.1,
+
+        math: {
+          mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@2.7.9/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          tex2jax: {
+            inlineMath: [['\\(','\\)']],
+            displayMath: [['\\[','\\]']],
+            balanceBraces: true,
+            processEscapes: false,
+            processRefs: true,
+            processEnvironments: true,
+            preview: 'TeX',
+            skipTags: ['script','noscript','style','textarea','pre','code'],
+            ignoreClass: 'tex2jax_ignore',
+            processClass: 'tex2jax_process'
+          },
+        },
+
+        // reveal.js plugins
+        plugins: [QuartoLineHighlight, PdfExport, RevealMenu, QuartoSupport,
+
+          RevealMath,
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    
+    <script>
+      // htmlwidgets need to know to resize themselves when slides are shown/hidden.
+      // Fire the "slideenter" event (handled by htmlwidgets.js) when the current
+      // slide changes (different for each slide format).
+      (function () {
+        // dispatch for htmlwidgets
+        function fireSlideEnter() {
+          const event = window.document.createEvent("Event");
+          event.initEvent("slideenter", true, true);
+          window.document.dispatchEvent(event);
+        }
+
+        function fireSlideChanged(previousSlide, currentSlide) {
+          fireSlideEnter();
+
+          // dispatch for shiny
+          if (window.jQuery) {
+            if (previousSlide) {
+              window.jQuery(previousSlide).trigger("hidden");
+            }
+            if (currentSlide) {
+              window.jQuery(currentSlide).trigger("shown");
+            }
+          }
+        }
+
+        // hookup for slidy
+        if (window.w3c_slidy) {
+          window.w3c_slidy.add_observer(function (slide_num) {
+            // slide_num starts at position 1
+            fireSlideChanged(null, w3c_slidy.slides[slide_num - 1]);
+          });
+        }
+
+      })();
+    </script>
+
+    <script id="quarto-html-after-body" type="application/javascript">
+      window.document.addEventListener("DOMContentLoaded", function (event) {
+        const tabsets =  window.document.querySelectorAll(".panel-tabset-tabby")
+        tabsets.forEach(function(tabset) {
+          const tabby = new Tabby('#' + tabset.id);
+        });
+        const isCodeAnnotation = (el) => {
+          for (const clz of el.classList) {
+            if (clz.startsWith('code-annotation-')) {                     
+              return true;
+            }
+          }
+          return false;
+        }
+        const onCopySuccess = function(e) {
+          // button target
+          const button = e.trigger;
+          // don't keep focus
+          button.blur();
+          // flash "checked"
+          button.classList.add('code-copy-button-checked');
+          var currentTitle = button.getAttribute("title");
+          button.setAttribute("title", "Copied!");
+          let tooltip;
+          if (window.bootstrap) {
+            button.setAttribute("data-bs-toggle", "tooltip");
+            button.setAttribute("data-bs-placement", "left");
+            button.setAttribute("data-bs-title", "Copied!");
+            tooltip = new bootstrap.Tooltip(button, 
+              { trigger: "manual", 
+                customClass: "code-copy-button-tooltip",
+                offset: [0, -8]});
+            tooltip.show();    
+          }
+          setTimeout(function() {
+            if (tooltip) {
+              tooltip.hide();
+              button.removeAttribute("data-bs-title");
+              button.removeAttribute("data-bs-toggle");
+              button.removeAttribute("data-bs-placement");
+            }
+            button.setAttribute("title", currentTitle);
+            button.classList.remove('code-copy-button-checked');
+          }, 1000);
+          // clear code selection
+          e.clearSelection();
+        }
+        const getTextToCopy = function(trigger) {
+          const outerScaffold = trigger.parentElement.cloneNode(true);
+          const codeEl = outerScaffold.querySelector('code');
+          for (const childEl of codeEl.children) {
+            if (isCodeAnnotation(childEl)) {
+              childEl.remove();
+            }
+          }
+          return codeEl.innerText;
+        }
+        const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+          text: getTextToCopy
+        });
+        clipboard.on('success', onCopySuccess);
+        if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+          const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+            text: getTextToCopy,
+            container: window.document.getElementById('quarto-embedded-source-code-modal')
+          });
+          clipboardModal.on('success', onCopySuccess);
+        }
+          var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+          var mailtoRegex = new RegExp(/^mailto:/);
+            var filterRegex = new RegExp('/' + window.location.host + '/');
+          var isInternal = (href) => {
+              return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+          }
+          // Inspect non-navigation links and adorn them if external
+         var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+          for (var i=0; i<links.length; i++) {
+            const link = links[i];
+            if (!isInternal(link.href)) {
+              // undo the damage that might have been done by quarto-nav.js in the case of
+              // links that we want to consider external
+              if (link.dataset.originalHref !== undefined) {
+                link.href = link.dataset.originalHref;
+              }
+            }
+          }
+        function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+          const config = {
+            allowHTML: true,
+            maxWidth: 500,
+            delay: 100,
+            arrow: false,
+            appendTo: function(el) {
+                return el.closest('section.slide') || el.parentElement;
+            },
+            interactive: true,
+            interactiveBorder: 10,
+            theme: 'light-border',
+            placement: 'bottom-start',
+          };
+          if (contentFn) {
+            config.content = contentFn;
+          }
+          if (onTriggerFn) {
+            config.onTrigger = onTriggerFn;
+          }
+          if (onUntriggerFn) {
+            config.onUntrigger = onUntriggerFn;
+          }
+            config['offset'] = [0,0];
+            config['maxWidth'] = 700;
+          window.tippy(el, config); 
+        }
+        const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+        for (var i=0; i<noterefs.length; i++) {
+          const ref = noterefs[i];
+          tippyHover(ref, function() {
+            // use id or data attribute instead here
+            let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+            try { href = new URL(href).hash; } catch {}
+            const id = href.replace(/^#\/?/, "");
+            const note = window.document.getElementById(id);
+            if (note) {
+              return note.innerHTML;
+            } else {
+              return "";
+            }
+          });
+        }
+        const findCites = (el) => {
+          const parentEl = el.parentElement;
+          if (parentEl) {
+            const cites = parentEl.dataset.cites;
+            if (cites) {
+              return {
+                el,
+                cites: cites.split(' ')
+              };
+            } else {
+              return findCites(el.parentElement)
+            }
+          } else {
+            return undefined;
+          }
+        };
+        var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+        for (var i=0; i<bibliorefs.length; i++) {
+          const ref = bibliorefs[i];
+          const citeInfo = findCites(ref);
+          if (citeInfo) {
+            tippyHover(citeInfo.el, function() {
+              var popup = window.document.createElement('div');
+              citeInfo.cites.forEach(function(cite) {
+                var citeDiv = window.document.createElement('div');
+                citeDiv.classList.add('hanging-indent');
+                citeDiv.classList.add('csl-entry');
+                var biblioDiv = window.document.getElementById('ref-' + cite);
+                if (biblioDiv) {
+                  citeDiv.innerHTML = biblioDiv.innerHTML;
+                }
+                popup.appendChild(citeDiv);
+              });
+              return popup.innerHTML;
+            });
+          }
+        }
+      });
+      </script>
+    
+
+</body></html>
