@@ -27,6 +27,7 @@ format:
     code-line-numbers: false
     highlight-style: a11y-dark
     slide-number: true
+    embed-resources: true
 execute:
   echo: true
   message: false

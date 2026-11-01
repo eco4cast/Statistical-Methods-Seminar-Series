@@ -7,7 +7,7 @@ An introduction to spatial phylogenetics (mapping the distribution of evolutiona
 ## Materials
 
 - `phylospatial-webinar.qmd`: the slides as a Quarto file. Every slide's code runs, so you can follow along chunk by chunk.
-- `phylospatial-webinar.html`: the rendered slides. Download this folder and open the file in a browser (it needs the `phylospatial-webinar_files/` folder alongside it).
+- `phylospatial-webinar.html`: the rendered slides; download it and open in a browser.
 - `data/moss_points.csv`: moss occurrence records used in the gridding example.
 - `images/`: figures used in the slides.
 
