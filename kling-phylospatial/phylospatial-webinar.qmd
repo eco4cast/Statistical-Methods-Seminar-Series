@@ -191,12 +191,27 @@ pri <- ps_prioritize(ps, init = init, cost = cost, progress = FALSE)
 ![](images/pd-cartoon-4.png){width="100%"}
 
 
-## Most phylodiversity metrics are familiar ones, applied to branches
 
-| Species-level | Branch-level |
-|---|---|
-| Richness: count of species | **PD**: total branch length present |
-| Weighted endemism: species weighted by 1 / range size | **PE**: branch length weighted by 1 / range size |
+## The unit of phylogenetic diversity is the *clade*
+
+::: columns
+::: {.column width="45%"}
+Not an ancestor on a branch segment, but a whole branch you could break off the tree: all the descendants of a common ancestor at segment in the tree. Every clade has two properties: 
+
+- **A range:** wherever any of its members occur
+- **A unique branch segment:** the evolutionary history its members share with no one else (its weight)
+:::
+
+::: {.column width="55%"}
+![](images/clade-cartoon-1.png){width="100%"}
+:::
+:::
+
+## Every branch becomes a community matrix column
+
+Add each clade to the species-level community matrix as a new "taxon", and store its branch length as a weight. Diversity metrics then work on branches just as they do on species: PD is the sum of the weights of the branches present.
+
+![](images/clade-cartoon-2.png){width="100%"}
 
 
 ## Common misconceptions
@@ -205,39 +220,14 @@ pri <- ps_prioritize(ps, init = init, cost = cost, progress = FALSE)
 |---|---|
 | Counting clades as well as species double-counts occurrences | Each branch counts once, weighted by its own length: a clade adds only the history unique to it |
 | Clade ranges are reconstructed ancestral ranges | They are where a clade's living descendants occur today |
-| High phylogenetic endemism means old lineages | PE mixes branch length and range size; CANAPE separates neo- from paleo-endemism |
 
-## Every clade has a range
 
-A branch occurs wherever any of its descendants occurs.
 
-```{r}
-#| label: clade-ranges
-#| echo: false
-#| fig.width: 7.41
-#| fig.height: 3.33
-#| out.width: "960px"
-# pick a clade whose two daughter lineages have clearly different ranges:
-# each daughter covers 15-60% of sites, with as little overlap as possible
-cm <- round(ps$comm); e <- ps$tree$edge; nt <- ape::Ntip(ps$tree)
-cand <- do.call(rbind, lapply(which(e[, 2] > nt), function(i) {
-      k <- which(e[, 1] == e[i, 2])
-      if (length(k) != 2) return(NULL)
-      a <- cm[, k[1]] > 0; b <- cm[, k[2]] > 0
-      data.frame(k1 = k[1], k2 = k[2], pa = mean(a), pb = mean(b),
-                 overlap = sum(a & b) / sum(a | b))
-}))
-cand <- subset(cand, pmin(pa, pb) >= 0.15 & pmax(pa, pb) <= 0.6)
-best <- cand[which.min(cand$overlap), ]
-# binary ranges (rounded probabilities); the clade is present wherever either daughter is
-daughters <- round(ps_get_comm(ps, tips_only = FALSE)[[c(best$k1, best$k2)]])
-ranges <- c(daughters, max(daughters))
-names(ranges) <- c("daughter lineage A", "daughter lineage B", "their clade")
-ggplot() + geom_spatraster(data = as.factor(ranges)) + facet_wrap(~lyr, nrow = 1) +
-      scale_fill_manual(values = c("gray88", "#1b7837"), labels = c("absent", "present"),
-                        na.translate = FALSE, na.value = NA, name = NULL) +
-      no_axes
-```
+## Phylogenetic endemism
+
+Endemism weights each taxon by the inverse of its range size, so restricted taxa count more; phylogenetic endemism (PE) applies this to branches, summing each branch's length divided by its range size.
+
+![](images/clade-cartoon-3.png){width="100%"}
 
 
 
@@ -659,7 +649,7 @@ tr <- ps_trace(ps, fun = "quantize", method = "curvecat",
 #| label: n-iter-plot
 #| bigtext: true
 #| echo: false
-#| fig.height: 4
+#| fig.height: 6
 iters <- nullcat::suggest_n_iter(tr, plot = TRUE)
 ```
 :::
@@ -944,16 +934,16 @@ map_rgb(rgb)
 
 ```{r}
 #| label: regions
-regions <- ps_regions(ps, k = 6,
-                      method = "average")
+regions <- ps_regions(ps, k = 4,
+                      method = "ward.D2")
 ```
 
 ```{r}
 #| label: regions-eval
 #| fig.width: 5
-#| fig.height: 2.9
+#| fig.height: 4
 ps_regions_eval(ps, k = 1:15,
-                method = "average")
+                method = "ward.D2")
 ```
 
 
@@ -967,7 +957,7 @@ ps_regions_eval(ps, k = 1:15,
 #| fig.height: 7.2
 reg <- as.factor(regions)
 ggplot() + geom_spatraster(data = reg) +
-      scale_fill_brewer(palette = "Paired", na.translate = FALSE, na.value = NA) +
+      scale_fill_brewer(type = "qual", na.translate = FALSE, na.value = NA) +
       labs(fill = "region") + no_axes
 ```
 :::
@@ -984,6 +974,15 @@ Choosing *where* to add new protection, given limited resources.
 - **Targets or benefits:** aim to protect a set share of each feature's range, or maximize total benefit with diminishing returns
 
 In phylospatial, the "features" are branches of the tree, so priorities favor sites that add evolutionary history not yet represented in protected areas.
+
+
+## Prioritization approaches
+
+phylospatial supports two complementary approaches:
+
+- `ps_prioritize()` ranks every site by its added conservation value, building the ranking one site at a time. The result is nested: any top-*k* sites form a sensible plan, which is useful when budgets are uncertain or protection will happen incrementally.
+- `ps_prioritizr()` sets up a problem for the {prioritizr} package, with a range-protection target or a budget for every branch, and an integer programming solver finds the optimal set of sites for that one scenario.
+
 
 ## Prioritization inputs
 
@@ -1023,6 +1022,8 @@ map_cont(cost, "cost") + ggtitle("1 + log(1 + population density)")
 ```
 :::
 :::
+
+
 
 ## Diminishing returns
 
